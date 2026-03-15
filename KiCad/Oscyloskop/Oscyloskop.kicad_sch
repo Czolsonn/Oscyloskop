@@ -1,0 +1,140 @@
+(kicad_sch
+	(version 20250114)
+	(generator "eeschema")
+	(generator_version "9.0")
+	(uuid "5171aaad-a19a-4a70-b48e-9c7c4171723c")
+	(paper "A4")
+	(lib_symbols)
+	(sheet
+		(at 119.38 20.32)
+		(size 38.1 29.21)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "9db34c82-3e8c-4a9e-b12c-59a7174f5bd0")
+		(property "Sheetname" "Power Input"
+			(at 119.38 19.6084 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "power_input.kicad_sch"
+			(at 119.38 50.1146 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "Oscyloskop"
+				(path "/5171aaad-a19a-4a70-b48e-9c7c4171723c"
+					(page "4")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 21.59 19.05)
+		(size 35.56 30.48)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "b937a69b-7247-4cee-97f4-870d6865de07")
+		(property "Sheetname" "Analog Input"
+			(at 21.59 18.3384 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "analog_input.kicad_sch"
+			(at 21.59 50.1146 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "Oscyloskop"
+				(path "/5171aaad-a19a-4a70-b48e-9c7c4171723c"
+					(page "2")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 72.39 20.32)
+		(size 34.29 27.94)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "b9ee1d22-f228-4e50-870a-4ca496f8b50c")
+		(property "Sheetname" "STM32"
+			(at 72.39 19.6084 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "STM32.kicad_sch"
+			(at 72.39 48.8446 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "Oscyloskop"
+				(path "/5171aaad-a19a-4a70-b48e-9c7c4171723c"
+					(page "3")
+				)
+			)
+		)
+	)
+	(sheet_instances
+		(path "/"
+			(page "1")
+		)
+	)
+	(embedded_fonts no)
+)
