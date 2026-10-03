@@ -66,8 +66,8 @@ V_th = V_DDA * R11/(R10+R11)                             (3.1)   Thevenin source
 V_N,AC = V_th                                            (3.2)   AC mode: capacitor blocks the 1 MΩ
 V_N,DC(Vin=0) = V_th*(1-A) + A*Vin                       (3.3)   DC mode
 V_out = V_ref + G*(V_N - V_ref)                          (3.4)
-dV_out = G*(dV_N + V_OS,A + V_OS,ref) + V_OS,5 + I_B,5*(Rf||Rg)  (3.5)   offsets add up, the first part is multiplied by G
-R10_ideal: 1/R10 = 1/R11 + 1/R9                           (3.6)   N = 1.65 V in DC mode with grounded input
+dV_out = G*(dV_N + V_OS,A + V_OS,5) + (G-1)*V_OS,ref + Rf*I_B,5          (3.5)   worst case: add magnitudes
+1/R10 = 1/R11 + 1/R9                                      (3.6)   N = V_DDA/2 in DC mode with grounded input (KCL at N)
 ```
 **Check values:** V_th = 1.690 V; V_N,DC = 1.639 V (−10.7 mV); R10_ideal = 59.62 kΩ; V_N,AC − 1.65 = +40 mV.
 Output offset (DC mode) for G = 6, 21, 101 is −64 mV, −225 mV, −1.08 V; (AC mode) +240 mV, +0.84 V, +4.0 V (**clips**).
@@ -124,7 +124,7 @@ v_in,rms = v_out,rms / (A*G)                             (6.5)
 LSB_in = LSB / (A*G)                                     (6.6)
 ```
 LMH6642: e_n = 17 nV/√Hz at 100 kHz (48 nV/√Hz at 1 kHz), i_n = 0.9 pA/√Hz (p.8). Compute at G = 1, 6, 21 how many LSB rms the noise gives, and the input-referred noise.
-The thermal noise of the 30.9 kΩ divider (22.6 nV/√Hz) dominates over the OPA354 (6.5 nV/√Hz).
+The divider's thermal noise (22.6 nV/√Hz) is band-limited by the compensation capacitors (kT/C, about 6 µV rms in total at node N), so in the MHz bandwidth the op-amps (OPA354 6.5, LMH6642 17 nV/√Hz) dominate.
 Aliasing: noise bandwidth up to f_-3dB (several MHz) is folded into 0–2 MHz (fs = 4 Msps), so the in-band noise is larger than e·√(1 MHz): compute with f_NB, then compare with the same with an RC filter before the ADC.
 
 ## 7. ADC, quantization and FFT (Zieliński)

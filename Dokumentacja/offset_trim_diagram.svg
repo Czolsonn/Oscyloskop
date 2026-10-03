@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1060 640" width="1060" height="640" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+  <rect width="1060" height="640" fill="#ffffff"/>
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#b3261e" stroke-width="1.6" stroke-linecap="round"/>
+    </marker>
+  </defs>
+  <style>
+    .w{stroke:#222;stroke-width:1.6;fill:none}
+    .b{stroke:#222;stroke-width:1.4;fill:#f4f6f8}
+    .t{fill:#111}
+    .s{fill:#555;font-size:11.5px}
+    .h{fill:#111;font-weight:600;font-size:15px}
+    .dac{stroke:#b3261e;stroke-width:1.6;fill:#fdecea}
+    .red{stroke:#b3261e;stroke-width:1.8;fill:none}
+    .rt{fill:#b3261e;font-weight:600}
+    .dot{fill:#222}
+  </style>
+
+  <text x="20" y="26" class="h">Offset trim of node N with the STM32 DAC (CH1 input, DC and AC mode)</text>
+
+  <!-- +3.3V rail and R10 -->
+  <line x1="470" y1="48" x2="570" y2="48" class="w"/>
+  <text x="575" y="52" class="t">+3.3 V (VDDA)</text>
+  <line x1="520" y1="48" x2="520" y2="70" class="w"/>
+  <rect x="510" y="70" width="20" height="36" class="b"/>
+  <text x="538" y="92" class="t">R10 61.9k</text>
+  <line x1="520" y1="106" x2="520" y2="140" class="w"/>
+
+  <!-- input chain -->
+  <circle cx="40" cy="140" r="6" class="b"/>
+  <text x="22" y="170" class="t">IN (BNC)</text>
+  <line x1="46" y1="140" x2="80" y2="140" class="w"/>
+  <rect x="80" y="108" width="112" height="64" rx="4" class="b"/>
+  <text x="90" y="130" class="t">K5  DC / AC</text>
+  <text x="90" y="147" class="s">C6 0.1 µF in AC mode</text>
+  <text x="90" y="162" class="s">(coupling cap)</text>
+  <line x1="192" y1="140" x2="216" y2="140" class="w"/>
+  <rect x="216" y="108" width="112" height="64" rx="4" class="b"/>
+  <text x="226" y="130" class="t">K6  SIGNAL / GND</text>
+  <text x="226" y="147" class="s">grounds the input</text>
+  <text x="226" y="162" class="s">for auto-zero</text>
+  <line x1="328" y1="140" x2="360" y2="140" class="w"/>
+
+  <!-- R9 with C8 across -->
+  <rect x="360" y="130" width="110" height="20" class="b"/>
+  <text x="380" y="145" class="t">R9 976k</text>
+  <polyline points="350,140 350,90 392,90" class="w"/>
+  <line x1="392" y1="78" x2="392" y2="102" class="w"/>
+  <line x1="402" y1="78" x2="402" y2="102" class="w"/>
+  <polyline points="402,90 480,90 480,140" class="w"/>
+  <line x1="470" y1="140" x2="520" y2="140" class="w"/>
+  <text x="360" y="70" class="t">C8 3.3 pF</text>
+  <circle cx="520" cy="140" r="4.5" class="dot"/>
+  <text x="498" y="128" class="t" font-weight="600">N</text>
+
+  <!-- bias bus below N -->
+  <line x1="520" y1="140" x2="520" y2="210" class="w"/>
+  <line x1="520" y1="210" x2="720" y2="210" class="w"/>
+
+  <!-- C9 -->
+  <line x1="560" y1="210" x2="560" y2="272" class="w"/>
+  <line x1="548" y1="272" x2="572" y2="272" class="w"/>
+  <line x1="548" y1="282" x2="572" y2="282" class="w"/>
+  <line x1="560" y1="282" x2="560" y2="420" class="w"/>
+  <text x="575" y="280" class="t">C9 ≈ 100 pF</text>
+  <text x="575" y="296" class="s">(+ trimmer; total C_low ≈ 107 pF)</text>
+  <circle cx="560" cy="210" r="3" class="dot"/>
+
+  <!-- R11 -->
+  <line x1="640" y1="210" x2="640" y2="250" class="w"/>
+  <rect x="630" y="250" width="20" height="36" class="b"/>
+  <line x1="640" y1="286" x2="640" y2="420" class="w"/>
+  <text x="655" y="272" class="t">R11 66.5k</text>
+  <circle cx="640" cy="210" r="3" class="dot"/>
+
+  <!-- ground rail -->
+  <line x1="540" y1="420" x2="660" y2="420" class="w"/>
+  <line x1="580" y1="420" x2="580" y2="430" class="w"/>
+  <line x1="568" y1="430" x2="592" y2="430" class="w"/>
+  <line x1="573" y1="436" x2="587" y2="436" class="w"/>
+  <text x="598" y="438" class="s">GND</text>
+
+  <!-- R_dac and DAC -->
+  <line x1="720" y1="210" x2="720" y2="250" class="red"/>
+  <rect x="710" y="250" width="20" height="36" class="dac"/>
+  <text x="738" y="272" class="rt">R_dac 511k</text>
+  <line x1="720" y1="286" x2="720" y2="330" class="red"/>
+  <rect x="660" y="330" width="120" height="48" rx="4" class="dac"/>
+  <text x="672" y="350" class="rt">STM32 DAC1_OUT1</text>
+  <text x="672" y="366" class="s">pin PA4 (free), + 100 nF to GND</text>
+
+  <!-- buffer, gain stage -->
+  <line x1="520" y1="140" x2="600" y2="140" class="w"/>
+  <polygon points="600,115 600,165 650,140" class="b"/>
+  <text x="590" y="105" class="t">OPA354</text>
+  <text x="590" y="184" class="s">buffer</text>
+  <line x1="650" y1="140" x2="700" y2="140" class="w"/>
+  <rect x="700" y="100" width="150" height="80" rx="4" class="b"/>
+  <text x="710" y="122" class="t">U5 LMH6642</text>
+  <text x="710" y="140" class="s">G = 1 + Rf/Rg</text>
+  <text x="710" y="156" class="s">Rf 1k (+ Cf), Rg → Vref</text>
+  <text x="710" y="171" class="s">Vref = 1.65 V buffered</text>
+  <line x1="850" y1="140" x2="885" y2="140" class="w"/>
+  <rect x="885" y="112" width="125" height="56" rx="4" class="b"/>
+  <text x="895" y="132" class="t">R16 100 Ω</text>
+  <text x="895" y="148" class="t">C10 150 pF</text>
+  <text x="895" y="162" class="s">→ ADC pin PA0</text>
+
+  <!-- auto-zero loop -->
+  <polyline points="948,168 948,520 750,520 750,380" class="red" marker-end="url(#ar)"/>
+  <text x="770" y="510" class="rt">firmware auto-zero loop</text>
+  <text x="770" y="540" class="s">1. K6 grounds the input   2. read ADC code</text>
+  <text x="770" y="556" class="s">3. change the DAC until the code = 2048 (mid-scale)</text>
+  <text x="770" y="572" class="s">4. repeat per mode (DC/AC) and per gain</text>
+
+  <!-- numbers -->
+  <rect x="20" y="450" width="480" height="170" rx="6" class="b"/>
+  <text x="34" y="474" class="h">Values (E96) and results</text>
+  <text x="34" y="496" class="t">R9 = 976 k, R10 = 61.9 k, R11 = 66.5 k, R_dac = 511 k</text>
+  <text x="34" y="514" class="t">R_th = R10 ‖ R11 ‖ R_dac = 30.17 k    R_in = R9 + R_th = 1.006 MΩ</text>
+  <text x="34" y="532" class="t">A = R_th / R_in = 0.0300 (÷33.4)</text>
+  <text x="34" y="550" class="t">DAC step at N: 0.806 mV × R_th/R_dac ≈ 48 µV (≈ 1 LSB at G = 20)</text>
+  <text x="34" y="568" class="t">Trim range at N: 1.560 … 1.749 V (DC), 1.608 … 1.803 V (AC)</text>
+  <text x="34" y="586" class="t">DAC ≈ 1.57 V gives N = 1.650 V in DC mode, ≈ 0.71 V in AC mode</text>
+  <text x="34" y="608" class="s">Values are nominal (1 % resistors move them by a few mV); the loop trims the real board.</text>
+</svg>
