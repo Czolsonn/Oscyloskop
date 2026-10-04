@@ -1,0 +1,50 @@
+* C:\Users\polus\AppData\Local\Temp\claude\C--Users-polus-OneDrive-Pulpit-Projekty-Oscyloskop\ca5e86cc-baa0-45ba-85ae-d4aee1359206\scratchpad\mc\OP_A_G1_DC_r.asc
+V2 v33 0 3.3
+R1 v33 N {mc(57.6k,tolR)}
+R2 mid v33 {mc(10k,tolR)}
+R3 mid 0 {mc(10k,tolR)}
+R4 N N001 {mc(976k,tolR)}
+R5 N 0 {mc(61.9k,tolR)}
+V4 V+ 0 3.3
+V1 N002 0 SINE(0 40 50k) AC 1 Rser=50 Cpar=100p
+C3 N 0 {mc(82p,tolC)} Rser=0.3 Lser=0.7n
+XU2 inm bufo 5+ 0 out5 LMH6642
+V7 PULSE 0 {5*kAC}
+V8 5+ 0 5 Rser=0.1
+XU4 N bufo 5+ 0 bufo OPA354
+XU1 N001 N002 P001 PULSE G6K_SPDT
+C4 P001 N002 {mc(0.1u,0.1)} V=100 Irms=0 Rser=0.03 Lser=0.8n Rpar=1G
+C5 N 0 {mc(27p,tolC)} Rser=1 Lser=1n
+C2 N N001 {mc(3.3p,tolC)} Rser=1 Lser=0.5n
+C7 N N001 {mc(0.15p,tolS)}
+C6 N 0 {mc(3p,tolS)}
+R6 out5 inm {mc(1k,tolR)}
+C8 out5 inm {mc(3.7p,tolC)} Rser=0.2 Lser=0.5n
+C9 inm 0 {mc(2p,tolS)}
+C10 out5 inm 0.1p
+R9 inm Vref {mc(Rg,tolR)}
+R10 V_out out5 100
+C11 V_out 0 150p Rser=0.2 Lser=0.7n
+C12 V_out 0 15p
+XU3 mid Vref 5+ 0 Vref OPA354
+C15 mid 0 10µ Rser=0.02 Lser=1.5n
+C16 mid 0 100n Rser=0.05 Lser=0.7n
+C13 Vref 0 10µ Rser=0.02 Lser=1.5n
+C14 Vref 0 100n Rser=0.05 Lser=0.7n
+.param Rg=1G
+.options plotwinsize=0 numdgt=15 noopiter gminsteps=0 abstol=1e-10 reltol=0.003 vntol=1e-5
+.nodeset V(5+)=5 V(v33)=3.3 V(n)=1.65 V(bufo)=1.65 V(vref)=1.65 V(mid)=1.65 V(inm)=1.65 V(out5)=1.65 V(v_out)=1.65
+.param tolR=0.001 tolC=0.05 tolS=0.3 kAC=0
+.step param run 1 31 1
+.dc V1 0 1u 1u
+.meas DC vn FIND V(n) AT 0
+.meas DC vrefm FIND V(vref) AT 0
+.meas DC vout FIND V(v_out) AT 0
+.meas DC dvn_mV PARAM (vn-1.65)*1000
+.meas DC dvref_mV PARAM (vrefm-1.65)*1000
+.meas DC dvout_mV PARAM (vout-1.65)*1000
+.lib C:\Users\polus\OneDrive\Pulpit\Projekty\Oscyloskop\Symulacje\G6K_SPDT.lib
+.lib C:\Users\polus\OneDrive\Pulpit\Projekty\Oscyloskop\Symulacje\LMH6642.MOD
+.lib C:\Users\polus\OneDrive\Pulpit\Projekty\Oscyloskop\Symulacje\sboc018c\OPA354-PSpiceFiles\SCHEMATIC1\TransientSimulation\OPA354.lib
+.backanno
+.end
