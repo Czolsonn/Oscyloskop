@@ -1,0 +1,20 @@
+Version 4
+SymbolType BLOCK
+RECTANGLE Normal -32 -48 85 74
+WINDOW 0 0 -48 Bottom 2
+WINDOW 3 25 75 Top 2
+SYMATTR Value G6K_SPDT
+SYMATTR Prefix X
+SYMATTR ModelFile C:\Users\polus\OneDrive\Pulpit\Projekty\Oscyloskop\Symulacje\G6K_SPDT.lib
+PIN -32 -16 LEFT 8
+PINATTR PinName COM
+PINATTR SpiceOrder 1
+PIN 80 -16 RIGHT 8
+PINATTR PinName NC
+PINATTR SpiceOrder 2
+PIN 80 48 RIGHT 8
+PINATTR PinName NO
+PINATTR SpiceOrder 3
+PIN -32 48 LEFT 8
+PINATTR PinName CTL
+PINATTR SpiceOrder 4

@@ -1,0 +1,15 @@
+* Omron G6K-2 relay, ONE SPDT pole (contacts only, the coil is not modelled)
+* A DPDT relay = two instances sharing the same CTL.
+* CTL > 2.5 V  = relay energized  (COM connected to NO)
+* CTL < 2.5 V  = relay released   (COM connected to NC)
+* Ron = 0.1 ohm : contact resistance (datasheet max. when new, check the Omron G6K datasheet)
+* 1 pF across each open contact is a PLACEHOLDER - check the G6K high-frequency data
+* PINOUT ORDER COM NC NO CTL
+.SUBCKT G6K_SPDT COM NC NO CTL
+.MODEL G6K_SW SW(Ron=0.1 Roff=1G Vt=2.5 Vh=0.1)
+B_inv ctlb 0 V=if(V(CTL)>2.5,0,5)
+S_NO COM NO CTL  0 G6K_SW
+S_NC COM NC ctlb 0 G6K_SW
+C_NO COM NO 1p
+C_NC COM NC 1p
+.ENDS G6K_SPDT
