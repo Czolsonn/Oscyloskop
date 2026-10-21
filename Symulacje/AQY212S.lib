@@ -1,0 +1,25 @@
+* Panasonic AQY212S PhotoMOS relay (GU SOP 1 Form A, 60 V), BEHAVIOURAL model (own work)
+* Panasonic publishes no SPICE model, values from datasheet ds_x615_en_aqy21s (typical, 25 C):
+*   LED: VF 1.14 V at 5 mA, 1.25 V at 50 mA   -> diode IS/N/RS fitted to these two points
+*   LED operate current 0.9 mA typ (3 mA max) -> parameter IFon
+*   On resistance 0.83 ohm typ (2.5 ohm max)  -> parameter Ron
+*   Off leakage max 1 uA at 60 V              -> Roff 10 Gohm typical; use Roff=60Meg for the worst case
+*   Turn on 0.65 ms, turn off 0.08 ms (IF = 5 mA) -> parameters Ton / Toff
+*   Output capacitance (fig. 12): 73 pF at 0 V, 33 pF at 10 V, 12 pF at 50 V
+*     -> fixed 70 pF, because in this design the open contact sees less than about 2 V
+* Not modelled: Ron change with temperature, Ton/Toff change with LED current.
+* PIN ORDER = package pins: 1 anode, 2 cathode, 3 and 4 output (the output has no polarity)
+.SUBCKT AQY212S A K O1 O2 PARAMS: Ron=0.83 Roff=10G Cout=70p IFon=0.9m Ton=0.65m Toff=0.08m
+D1 A n1 AQY_LED
+VS n1 K 0
+* optical coupling: x = 1 when the LED current is above IFon,
+* y follows x with the turn-on / turn-off time constant, the switch changes state at y = 0.5
+BX x 0 V=if(I(VS)>IFon,1,0)
+BY 0 y I=(V(x)-V(y))*if(V(x)>V(y),0.6931/Ton,0.6931/Toff)
+CY y 0 1
+RY y 0 1G
+S1 O1 O2 y 0 AQY_SW
+C1 O1 O2 {Cout}
+.model AQY_SW SW(Ron={Ron} Roff={Roff} Vt=0.5 Vh=-0.05)
+.model AQY_LED D(IS=9.1e-16 N=1.5 RS=0.47 BV=5 IBV=10u CJO=20p)
+.ENDS AQY212S

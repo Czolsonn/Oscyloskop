@@ -1,0 +1,61 @@
+* TMUX1104 - 4:1 CMOS analog multiplexer, BEHAVIOURAL model (own work)
+* TI publishes only an IBIS model for this part (SCDM194), so this model is built from
+* the datasheet TI SCDS392C, table 5.5 (VDD = 5 V, 25 C, typical values):
+*   RON 2 ohm (max 4 ohm)           -> parameter Ron
+*   CS(OFF) 6 pF, CD(OFF) 28 pF     -> 6 pF from every S pin, 28 pF from D to GND
+*   CON 35 pF                       -> 6 pF + 28 pF when a channel is on
+*   off leakage about 0.01 nA       -> Roff 100 Gohm
+*   tTRAN 14 ns, break-before-make  -> RC 5 ns on each switch control, switch threshold 4 V of 5 V (gives about 7 ns break-before-make)
+*   QC 1.5 pC                       -> 0.3 pF from each switch control (0...5 V) to D
+*   logic VIH 1.49 V / VIL 0.87 V   -> one threshold at 1.18 V
+* Not modelled: Ron change with signal voltage (flatness 0.85 ohm), temperature, supply current.
+* Truth table (datasheet table 7-1): EN = 0 -> all off; A1 A0 = 00 S1, 01 S2, 10 S3, 11 S4.
+* PIN ORDER = package pins 1...10: A0 S1 GND S3 EN VDD S4 D S2 A1
+.SUBCKT TMUX1104 A0 S1 GND S3 EN VDD S4 D S2 A1 PARAMS: Ron=2 Roff=100G
+.param VTH=1.18
+B1 k1 GND V=if((V(EN,GND)>VTH)&(V(A1,GND)<VTH)&(V(A0,GND)<VTH),5,0)
+B2 k2 GND V=if((V(EN,GND)>VTH)&(V(A1,GND)<VTH)&(V(A0,GND)>VTH),5,0)
+B3 k3 GND V=if((V(EN,GND)>VTH)&(V(A1,GND)>VTH)&(V(A0,GND)<VTH),5,0)
+B4 k4 GND V=if((V(EN,GND)>VTH)&(V(A1,GND)>VTH)&(V(A0,GND)>VTH),5,0)
+R1 k1 c1 1k
+R2 k2 c2 1k
+R3 k3 c3 1k
+R4 k4 c4 1k
+C1 c1 GND 5p
+C2 c2 GND 5p
+C3 c3 GND 5p
+C4 c4 GND 5p
+S1 S1 D c1 GND TMUX_SW
+S2 S2 D c2 GND TMUX_SW
+S3 S3 D c3 GND TMUX_SW
+S4 S4 D c4 GND TMUX_SW
+* charge injection
+CQ1 c1 D 0.3p
+CQ2 c2 D 0.3p
+CQ3 c3 D 0.3p
+CQ4 c4 D 0.3p
+* pin capacitances
+CS1 S1 GND 6p
+CS2 S2 GND 6p
+CS3 S3 GND 6p
+CS4 S4 GND 6p
+CD D GND 28p
+* ESD diodes to the supply rails
+DH1 S1 VDD TMUX_ESD
+DL1 GND S1 TMUX_ESD
+DH2 S2 VDD TMUX_ESD
+DL2 GND S2 TMUX_ESD
+DH3 S3 VDD TMUX_ESD
+DL3 GND S3 TMUX_ESD
+DH4 S4 VDD TMUX_ESD
+DL4 GND S4 TMUX_ESD
+DHD D VDD TMUX_ESD
+DLD GND D TMUX_ESD
+* logic inputs: 1 pF each, supply current 5 nA
+CA0 A0 GND 1p
+CA1 A1 GND 1p
+CEN EN GND 1p
+RDD VDD GND 1G
+.model TMUX_SW SW(Ron={Ron} Roff={Roff} Vt=4 Vh=-0.3)
+.model TMUX_ESD D(IS=1e-15 N=1 RS=10)
+.ENDS TMUX1104
