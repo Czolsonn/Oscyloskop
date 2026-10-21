@@ -1,13 +1,13 @@
 (kicad_sch
-	(version 20250114)
+	(version 20260306)
 	(generator "eeschema")
-	(generator_version "9.0")
+	(generator_version "10.0")
 	(uuid "5171aaad-a19a-4a70-b48e-9c7c4171723c")
 	(paper "A4")
 	(lib_symbols)
 	(sheet
-		(at 119.38 20.32)
-		(size 38.1 29.21)
+		(at 21.59 58.42)
+		(size 38.1 30.48)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
@@ -18,11 +18,13 @@
 			(type solid)
 		)
 		(fill
-			(color 0 0 0 0.0000)
+			(color 0 0 0 0)
 		)
-		(uuid "9db34c82-3e8c-4a9e-b12c-59a7174f5bd0")
-		(property "Sheetname" "Power Input"
-			(at 119.38 19.6084 0)
+		(uuid "1a05c7bf-0b15-498a-b297-e2e797a40476")
+		(property "Sheetname" "Nucleo STM32"
+			(at 21.59 57.7084 0)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -30,8 +32,56 @@
 				(justify left bottom)
 			)
 		)
-		(property "Sheetfile" "power_input.kicad_sch"
-			(at 119.38 50.1146 0)
+		(property "Sheetfile" "nucleo.kicad_sch"
+			(at 21.59 89.4846 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "Oscyloskop"
+				(path "/5171aaad-a19a-4a70-b48e-9c7c4171723c"
+					(page "7")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 97.79 19.05)
+		(size 35.56 30.48)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0)
+		)
+		(uuid "38bfa786-a514-4b4e-8128-52648690b599")
+		(property "Sheetname" "Analog Input CH3"
+			(at 97.79 18.3384 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "analog_input_ch3.kicad_sch"
+			(at 97.79 50.1146 0)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -43,6 +93,52 @@
 			(project "Oscyloskop"
 				(path "/5171aaad-a19a-4a70-b48e-9c7c4171723c"
 					(page "4")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 21.59 95.25)
+		(size 38.1 30.48)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0)
+		)
+		(uuid "9db34c82-3e8c-4a9e-b12c-59a7174f5bd0")
+		(property "Sheetname" "Power Input"
+			(at 21.59 94.5384 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "power_input.kicad_sch"
+			(at 21.59 126.3146 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "Oscyloskop"
+				(path "/5171aaad-a19a-4a70-b48e-9c7c4171723c"
+					(page "6")
 				)
 			)
 		)
@@ -60,11 +156,13 @@
 			(type solid)
 		)
 		(fill
-			(color 0 0 0 0.0000)
+			(color 0 0 0 0)
 		)
 		(uuid "b937a69b-7247-4cee-97f4-870d6865de07")
-		(property "Sheetname" "Analog Input"
+		(property "Sheetname" "Analog Input CH1"
 			(at 21.59 18.3384 0)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -74,6 +172,8 @@
 		)
 		(property "Sheetfile" "analog_input.kicad_sch"
 			(at 21.59 50.1146 0)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -90,8 +190,8 @@
 		)
 	)
 	(sheet
-		(at 72.39 20.32)
-		(size 34.29 27.94)
+		(at 135.89 19.05)
+		(size 35.56 30.48)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
@@ -102,11 +202,13 @@
 			(type solid)
 		)
 		(fill
-			(color 0 0 0 0.0000)
+			(color 0 0 0 0)
 		)
-		(uuid "b9ee1d22-f228-4e50-870a-4ca496f8b50c")
-		(property "Sheetname" "STM32"
-			(at 72.39 19.6084 0)
+		(uuid "bb05c821-58fc-4843-af22-183bb6bf8128")
+		(property "Sheetname" "Analog Input CH4"
+			(at 135.89 18.3384 0)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -114,8 +216,56 @@
 				(justify left bottom)
 			)
 		)
-		(property "Sheetfile" "STM32.kicad_sch"
-			(at 72.39 48.8446 0)
+		(property "Sheetfile" "analog_input_ch4.kicad_sch"
+			(at 135.89 50.1146 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "Oscyloskop"
+				(path "/5171aaad-a19a-4a70-b48e-9c7c4171723c"
+					(page "5")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 59.69 19.05)
+		(size 35.56 30.48)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0)
+		)
+		(uuid "f9867eac-80f1-4bf5-9f6a-6fdabce1f493")
+		(property "Sheetname" "Analog Input CH2"
+			(at 59.69 18.3384 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "analog_input_ch2.kicad_sch"
+			(at 59.69 50.1146 0)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
