@@ -1,0 +1,66 @@
+* CH1 analog front end - check of values (DC-coupled mode, relay K5 released)
+* Final values from calculated_values.md. Open with LTspice: File > Open > AFE_check.cir
+.include "C:\Users\polus\OneDrive\Pulpit\Projekty\Oscyloskop\Symulacje\sboc018c\OPA354-PSpiceFiles\SCHEMATIC1\TransientSimulation\OPA354.lib"
+.include "C:\Users\polus\OneDrive\Pulpit\Projekty\Oscyloskop\Symulacje\LMH6642.MOD"
+.include "C:\Users\polus\OneDrive\Pulpit\Projekty\Oscyloskop\Symulacje\G6K_SPDT.lib"
+
+.param Rg=1G
+.param C5trim=27p
+
+* source: 50 ohm + 100 pF cable
+V1 src 0 AC 1
+Rs src in 50
+Ccab in 0 100p
+
+* K5 DC/AC relay (control 0 V = released = DC mode; 5 V = AC mode)
+VK5 ctl5 0 0
+XK5 c1 in c4 ctl5 G6K_SPDT
+C4 in c4 0.1u
+
+* divider: R9 || (C8 + parasitic), bias R10/R11, C_low
+R4 c1 N 976k
+C2 c1 N 3.3p
+C7 c1 N 0.15p
+R1 vdd33 N 57.6k
+R5 N 0 61.9k
+V2 vdd33 0 3.3
+C3 N 0 82p
+C5 N 0 {C5trim}
+C6 N 0 3p
+
+* supplies
+V8 v5s 0 5
+Rs5 v5s v5 0.1
+
+* OPA354 buffer on node N
+XU4 N bufo v5 0 bufo OPA354
+
+* 1.65 V reference: 10k/10k from 3.3 V + OPA354 buffer
+V3 vdd3 0 3.3
+R2 vdd3 mid 10k
+R3 mid 0 10k
+XU3 mid vref v5 0 vref OPA354
+
+* gain stage LMH6642: order -IN +IN V+ V- OUT
+XU2 inm bufo v5 0 out5 LMH6642
+R6 inm out5 1k
+C8 inm out5 3.7p
+C10 inm out5 0.1p
+C9 inm 0 2p
+R7 inm vref {Rg}
+
+* output network and ADC pin
+R16 out5 adc 100
+C11 adc 0 150p
+C12 adc 0 15p
+
+.nodeset V(N)=1.65 V(bufo)=1.65 V(vref)=1.65 V(mid)=1.65 V(inm)=1.65 V(out5)=1.65 V(adc)=1.65 V(v5)=5 V(vdd33)=3.3 V(vdd3)=3.3
+* .step param Rg list 1G 499 110 52.3   <- stepping hangs with the OPA354 vendor model; change .param Rg above and run 4 times instead
+.ac dec 100 10 50Meg
+.meas AC gmid FIND mag(V(adc)) AT 1k
+.meas AC g1M  FIND mag(V(adc)) AT 1Meg
+.meas AC g100k FIND mag(V(adc)) AT 100k
+.meas AC f3db WHEN mag(V(adc))=gmid/sqrt(2) FALL=1
+.meas AC gN  FIND mag(V(N)) AT 100k
+.options plotwinsize=0 numdgt=15 noopiter
+.end

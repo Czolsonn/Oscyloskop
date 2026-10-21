@@ -1,0 +1,10 @@
+* test OPA354 unity buffer
+.include "C:\Users\polus\OneDrive\Pulpit\Projekty\Oscyloskop\Symulacje\sboc018c\OPA354-PSpiceFiles\SCHEMATIC1\TransientSimulation\OPA354.lib"
+V5 v5 0 5
+Vin in 0 1.65 AC 1
+XU in out v5 0 out OPA354
+RL out 0 1k
+.ac dec 50 1k 1Gig
+.meas AC bw WHEN mag(V(out))=0.7071 FALL=1
+.op
+.end

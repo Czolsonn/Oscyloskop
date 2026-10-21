@@ -1,0 +1,63 @@
+* ============================================================================
+* Behavioural supply models for the oscilloscope project  (NOT vendor models)
+* ============================================================================
+* Written from datasheet values because no SPICE model was available:
+*   TLV1117-50  : TI SLVS561O (June 2025), "new chip", fixed output
+*   AP2112K-3.3 : Diodes Inc. AP2112 datasheet
+*   BLM18AG102SN1 : Murata, 1 kOhm at 100 MHz, DCR 0.5 Ohm max
+* Each LDO is a regulated voltage source with
+*   - dropout limit            Vout <= Vin - (Vdo0 + Rdo*Iout)
+*   - supply feed-through      PSRR(f): flat klf, then rising to khf above ~fa*klf/khf
+*   - output impedance         Rdc + (L || Rhf), L = Rhf/(2*pi*fc)
+*   - output noise             white enw + two low-frequency terms (en1,f1) (en2,f2)
+*   - quiescent current Iq, and the output current is drawn from IN
+* LIMITS: there is no feedback loop inside, so these models can NOT show instability
+* or the real load-transient shape. fc and Rhf are ASSUMED (not in the datasheets).
+* For the "legacy" TLV1117 silicon use LTspice's built-in LT1117-5 instead.
+* ----------------------------------------------------------------------------
+.subckt LDO_BEH IN OUT GND params: Vnom=5 Vinnom=7 klf=3.16e-4 khf=1.58e-2 fa=75k
++ Vdo0=0.115 Rdo=0.86 Rdc=25m Rhf=1 fc=100k Iq=65u enw=0.85u en1=14u f1=10 en2=7u f2=400
+* supply feed-through, high-pass branch
+Cff IN nff {1/(2*pi*fa*1k)}
+Rff nff GND 1k noiseless
+* noise generators: the thermal noise of 1 kOhm (4.07 nV/rtHz at 27 C) is scaled in Breg
+Rnw nw 0 1k
+Rn1 n1 0 1k
+Cn1 n1 0 {1/(2*pi*f1*1k)}
+Rn2 n2 0 1k
+Cn2 n2 0 {1/(2*pi*f2*1k)}
+* regulated node with dropout
+Breg nreg GND V=min({Vnom}+{klf}*(V(IN,GND)-{Vinnom})+{khf}*V(nff,GND)+{enw/4.07n}*V(nw)+{en1/4.07n}*V(n1)+{en2/4.07n}*V(n2), V(IN,GND)-{Vdo0}-{Rdo}*I(Vsns))
+* output impedance
+Rdc nreg nz {Rdc} noiseless
+Lz nz nzo {Rhf/(2*pi*fc)} Rser=0
+Rhf nz nzo {Rhf} noiseless
+Vsns nzo OUT 0
+* input current = output current + quiescent current
+Bin IN GND I=I(Vsns)+{Iq}*limit(V(IN,GND),0,1)
+.ends LDO_BEH
+
+* TLV1117-50, new chip (fab code RFB / FFAB), fixed 5.0 V
+*  dropout 0.2 V @ 0.1 A, 0.8 V @ 0.8 A | load reg 0.5 %/A | PSRR 70 dB @ 120 Hz | Iq 65 uA
+*  PSRR shape from Fig. 5-11 (1.8 V output), lowered by 10 dB to match the 70 dB spec
+*  noise: Fig. 5-37 gives 66 uV (0.8 V) and 217 uV (3.3 V); extrapolated to about 320 uV at 5 V
+*  fc = 10 kHz: slow loop at light load, estimated from the load-transient plot (Fig. 5-20)
+.subckt TLV1117_50 IN OUT GND
+X1 IN OUT GND LDO_BEH Vnom=5 Vinnom=7 klf=3.16e-4 khf=1.58e-2 fa=75k Vdo0=0.115 Rdo=0.86
++ Rdc=25m Rhf=1 fc=10k Iq=65u enw=0.85u en1=14u f1=10 en2=7u f2=400
+.ends TLV1117_50
+
+* AP2112K-3.3
+*  dropout 125 mV @ 0.3 A, 250 mV @ 0.6 A | load reg 0.2 %/A | PSRR 65-67 dB to ~5 kHz, ~40 dB @ 100 kHz
+*  noise 50 uVrms (10 Hz - 100 kHz) | Iq 55 uA | VIN max 6 V (must NOT be fed from the battery)
+.subckt AP2112K_33 IN OUT GND
+X1 IN OUT GND LDO_BEH Vnom=3.3 Vinnom=5 klf=4.47e-4 khf=5.6e-2 fa=877k Vdo0=1m Rdo=0.415
++ Rdc=6.6m Rhf=0.42 fc=100k Iq=55u enw=0.15u en1=1.5u f1=30 en2=0.1n f2=1k
+.ends AP2112K_33
+
+* Ferrite bead BLM18AG102SN1 (0603): inductive below ~20 MHz, about 1 kOhm at 100 MHz
+*  L is an estimate from the typical impedance curve; Rdc max is 0.5 Ohm
+.subckt BLM18AG102 A B params: L=6u Rac=1.1k Rdc=0.35 Cp=0.3p
+Rdc A m {Rdc}
+L1 m B {L} Rser=0 Rpar={Rac} Cpar={Cp}
+.ends BLM18AG102
