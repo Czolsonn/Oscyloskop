@@ -1,61 +1,3 @@
-# Created by https://www.toptal.com/developers/gitignore/api/kicad,c,ltspice
-# Edit at https://www.toptal.com/developers/gitignore?templates=kicad,c,ltspice
-
-### C ###
-# Prerequisites
-*.d
-
-# Object files
-*.o
-*.ko
-*.obj
-*.elf
-
-# Linker output
-*.ilk
-*.map
-*.exp
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
-
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
-
-# Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
-*.hex
-
-# Debug files
-*.dSYM/
-*.su
-*.idb
-*.pdb
-
-# Kernel Module Compile Results
-*.mod*
-*.cmd
-.tmp_versions/
-modules.order
-Module.symvers
-Mkfile.old
-dkms.conf
-
-### KiCad ###
 # For PCBs designed using KiCad: https://www.kicad.org/
 # Format documentation: https://kicad.org/help/file-formats/
 
@@ -66,14 +8,19 @@ dkms.conf
 *.kicad_pcb-bak
 *.kicad_sch-bak
 *-backups
-*.kicad_prl
-*.sch-bak
+*-cache*
+*-bak
+*-bak*
 *~
+~*
 _autosave-*
+\#auto_saved_files\#
 *.tmp
 *-save.pro
 *-save.kicad_pcb
 fp-info-cache
+~*.lck
+\#auto_saved_files#
 
 # Netlist files (exported from Eeschema)
 *.net
@@ -86,26 +33,14 @@ fp-info-cache
 *.xml
 *.csv
 
-### KiCad Patch ###
-rescue-backup/
+# Archived Backups (KiCad 6.0)
+**/*-backups/*.zip
 
-*.tsv
-bom/
+# Local project settings
+*.kicad_prl
 
-# Gerber export output
-out/
-
-### LTspice ###
-# gitignore template for LTspice
-# website: https://www.analog.com/en/design-center/design-tools-and-calculators/ltspice-simulator.html
-
-# Logfile
-*.log
-
-# Simulation Outputs
-*.raw
-*.fft
-
-# Netlist
-
-# End of https://www.toptal.com/developers/gitignore/api/kicad,c,ltspice
+# STM32CubeIDE (workspace and build output)
+.metadata/
+Firmware/**/Debug/
+Firmware/**/Release/
+*.launch
