@@ -1,24 +1,42 @@
 /*
- * app.c - krok A3: układ ekranu + 4 sztuczne przebiegi animowane, pomiar klatek/s.
- * W kolejnych krokach sztuczne przebiegi zastąpią dane z ADC (acq.c / view.c).
+ * app.c - krok A5: 4 kanały jednocześnie (ADC3+ADC4 i ADC1+ADC2 w trybie dual, wspólny TIM6).
+ * Sygnał testowy: sinus 10 kHz z DAC1 (PA4) - kabelek przykładany kolejno do wejść kanałów.
+ *
+ * Ekran: każdy kanał we własnym pasie 50 px (pełny zakres ADC 0..3,3 V na 2 działki).
+ * Wyzwolenie automatyczne: na kanale z największym Vpp, poziom = środek jego zakresu.
+ * Pętla: blok 4 x 4096 próbek (1,18 ms) -> wyzwolenie -> kolumny min/max -> ramka DMA -> nowy blok.
  */
 #include "app.h"
+#include "acq.h"
 #include "gfx.h"
 #include "lcd.h"
 #include "main.h"
+#include "dac.h"
+#include "tim.h"
 #include <math.h>
 #include <stdio.h>
 
 #define BAR_TOP_H  16
 #define BAR_BOT_Y  (PLOT_Y + PLOT_H)      /* 216 */
 #define COL_BAR    RGB565(28, 28, 28)
-#define PI2        6.2831853f
+
+#define DEC        4                      /* próbek na piksel -> 1200 próbek = 346 us na ekranie */
+#define BAND_H     (PLOT_H / NCH)         /* 50 px na kanał */
+#define VREF_MV    3300                   /* Nucleo: VREF+ = VDDA = 3,3 V (na płytce 3,25 V) */
+#define MIN_VPP    200                    /* [kody] poniżej tego kanał uznajemy za "bez sygnału" */
+
+/* DAC: 50 próbek na okres, aktualizacja 500 kHz (TIM2) -> sinus 10 kHz */
+#define DAC_PTS    50
+static uint16_t dac_tab[DAC_PTS * 10];    /* 10 okresów - rzadsze przerwania DMA */
 
 static const uint16_t ch_color[NCH] = { C_YELLOW, C_CYAN, C_MAGENTA, C_LIME };
-static const int16_t  ch_zero[NCH]  = { 50, 100, 135, 170 };   /* położenie 0 V w polu (px) */
+static const char *ch_pin[NCH] = { "PB1", "PB15", "PA0", "PA1" };
 
-static float    phase;
-static uint32_t t_next, frames_last, cyc_last;
+static uint32_t t_next, frames_last;
+static uint32_t half_min = 0xFFFFFFFFu;   /* najkrótszy czas połowy bloku w ostatniej sekundzie */
+static uint16_t vmin[NCH], vmax[NCH];     /* zakres każdego kanału w bloku [kody] */
+static int      src = -1;                 /* kanał wyzwalający, -1 = brak sygnału */
+static uint32_t f_mHz, triggered;
 
 static void dwt_init(void)
 {
@@ -27,101 +45,187 @@ static void dwt_init(void)
     DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
 }
 
+static void dac_start(void)
+{
+    for (int i = 0; i < DAC_PTS * 10; i++)               /* 2048 +- 1200 kodów = 0,68...2,62 V */
+        dac_tab[i] = (uint16_t)(2048.0f + 1200.0f * sinf(6.2831853f * (float)i / DAC_PTS));
+    HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, (uint32_t *)dac_tab, DAC_PTS * 10, DAC_ALIGN_12B_R);
+    /* DMA DAC chodzi w kółko - przerwania połowy/końca nie są potrzebne */
+    __HAL_DMA_DISABLE_IT(hdac1.DMA_Handle1, DMA_IT_HT | DMA_IT_TC);
+    HAL_TIM_Base_Start(&htim2);
+}
+
+/* Kod ADC -> piksel w pasie kanału ch (pełny zakres 0..4095 = 50 px) */
+static inline int16_t code_to_y(int ch, int32_t code)
+{
+    return (int16_t)(ch * BAND_H + (BAND_H - 1) - code * BAND_H / 4096);
+}
+
 static void draw_static(void)
 {
     lcd_fill(C_BLACK);
-
-    /* pasek statusu */
     lcd_fill_rect(0, 0, LCD_W, BAR_TOP_H, COL_BAR);
-    lcd_fill_rect(2, 2, 22, 12, RGB565(46, 125, 50));
-    lcd_text(4, 4, "RUN", C_WHITE, RGB565(46, 125, 50), 1);
-    lcd_text(32, 4, "T:200us/dz", C_WHITE, COL_BAR, 1);
-    lcd_text(104, 4, "Trg:CH1 ^ 1,20V", C_YELLOW, COL_BAR, 1);
-    lcd_text(200, 4, "AUTO", C_WHITE, COL_BAR, 1);
-
-    /* prawa kolumna ze znacznikami zera kanałów */
     lcd_fill_rect(PLOT_W, PLOT_Y, LCD_W - PLOT_W, PLOT_H, RGB565(18, 18, 18));
-    for (int c = 0; c < NCH; c++) {
-        uint16_t y = PLOT_Y + ch_zero[c] - 5;
+    lcd_fill_rect(0, BAR_BOT_Y, LCD_W, LCD_H - BAR_BOT_Y, COL_BAR);
+
+    for (int c = 0; c < NCH; c++) {                      /* znacznik kanału na środku jego pasa */
+        uint16_t y = PLOT_Y + c * BAND_H + BAND_H / 2 - 5;
         lcd_fill_rect(PLOT_W + 3, y, 15, 11, ch_color[c]);
         char s[2] = { (char)('1' + c), 0 };
         lcd_text(PLOT_W + 8, y + 2, s, C_BLACK, ch_color[c], 1);
     }
+}
 
-    /* dolny pasek kanałów */
-    lcd_fill_rect(0, BAR_BOT_Y, LCD_W, LCD_H - BAR_BOT_Y, COL_BAR);
-    const char *lab[NCH] = { "1: 2V DC", "2: 5V AC", "3: 1V DC", "4: 1V DC" };
+/* Dolny pasek: Vpp każdego kanału (odświeżany raz na sekundę) */
+static void draw_bottom(void)
+{
     for (int c = 0; c < NCH; c++) {
-        lcd_fill_rect(2 + c * 62, BAR_BOT_Y + 3, 58, 11, ch_color[c]);
-        lcd_text(5 + c * 62, BAR_BOT_Y + 5, lab[c], C_BLACK, ch_color[c], 1);
+        uint32_t mv = (uint32_t)(vmax[c] - vmin[c]) * VREF_MV / 4095;
+        char s[16];
+        snprintf(s, sizeof s, "%d:%s %lu.%02luV", c + 1, ch_pin[c],
+                 (unsigned long)(mv / 1000), (unsigned long)(mv / 10 % 100));
+        lcd_fill_rect(2 + c * 79, BAR_BOT_Y + 3, 76, 11, ch_color[c]);
+        lcd_text(4 + c * 79, BAR_BOT_Y + 5, s, C_BLACK, ch_color[c], 1);
     }
 }
 
-/* Cztery sztuczne przebiegi (zamiast ADC) */
-static void make_traces(float ph)
+/* Częstotliwość: średni odstęp między przejściami w górę w całym bloku */
+static uint32_t measure_f_mHz(const uint16_t *d, uint16_t level, uint16_t hyst)
 {
-    int16_t y[PLOT_W];
-
-    for (int x = 0; x < PLOT_W; x++)                          /* CH1: sinus */
-        y[x] = (int16_t)(ch_zero[0] - 38.0f * sinf(PI2 * x / 150.0f + ph));
-    gfx_trace_from_y(&gfx_tr[0], y);
-
-    for (int x = 0; x < PLOT_W; x++) {                        /* CH2: prostokąt */
-        int p = (x + (int)(ph * 12.0f)) % 75;
-        y[x] = (int16_t)(ch_zero[1] + (p < 37 ? -20 : 20));
+    int32_t first = acq_find_trigger(d, 1, ACQ_N, level, hyst), last = first, n = 0;
+    while (last >= 0) {
+        int32_t nx = acq_find_trigger(d, last + 1, ACQ_N, level, hyst);
+        if (nx < 0) break;
+        last = nx;
+        n++;
     }
-    gfx_trace_from_y(&gfx_tr[1], y);
+    return (n > 0) ? (uint32_t)((uint64_t)ACQ_FS_HZ * 1000u * (uint32_t)n / (uint32_t)(last - first)) : 0;
+}
 
-    for (int x = 0; x < PLOT_W; x++)                          /* CH3: sinus z modulacją */
-        y[x] = (int16_t)(ch_zero[2] - 15.0f * sinf(PI2 * x / 25.0f + 3.0f * ph)
-                                          * (0.6f + 0.4f * sinf(PI2 * x / 300.0f)));
-    gfx_trace_from_y(&gfx_tr[2], y);
-
-    for (int x = 0; x < PLOT_W; x++) {                        /* CH4: trójkąt */
-        float p = fmodf(x / 100.0f + ph * 0.1f, 1.0f);
-        y[x] = (int16_t)(ch_zero[3] - 20.0f * (p < 0.5f ? 4.0f * p - 1.0f : 3.0f - 4.0f * p));
+/* Blok -> kolumny min/max wszystkich kanałów.
+ * Wyzwolenie z ułamkiem próbki na kanale src; wszystkie kanały rysowane od tej samej chwili
+ * (próbki są jednoczesne, więc przesunięcia między kanałami na ekranie są prawdziwe). */
+static void build_view(void)
+{
+    /* 1. zakres każdego kanału, wybór kanału wyzwalającego (największe Vpp) */
+    uint32_t best = MIN_VPP;
+    src = -1;
+    for (int c = 0; c < NCH; c++) {
+        const uint16_t *d = acq_ch(c);
+        uint16_t mn = 4095, mx = 0;
+        for (int i = 0; i < ACQ_N; i++) {
+            if (d[i] < mn) mn = d[i];
+            if (d[i] > mx) mx = d[i];
+        }
+        vmin[c] = mn;
+        vmax[c] = mx;
+        if ((uint32_t)(mx - mn) > best) { best = mx - mn; src = c; }
     }
-    gfx_trace_from_y(&gfx_tr[3], y);
+
+    /* 2. wyzwolenie: poziom w połowie zakresu, histereza 5 % Vpp */
+    const int32_t half = PLOT_W * DEC / 2;               /* 600 próbek */
+    float pos0 = 0.0f;                                   /* bez wyzwolenia: od początku bloku */
+    triggered = 0;
+    f_mHz = 0;
+    gfx_trig_y = -1;
+    if (src >= 0) {
+        const uint16_t *d = acq_ch(src);
+        uint16_t level = (uint16_t)((vmin[src] + vmax[src]) / 2);
+        uint16_t hyst = (uint16_t)((vmax[src] - vmin[src]) / 20);
+        int32_t t = acq_find_trigger(d, half, ACQ_N - half, level, hyst);
+        if (t >= 0) {
+            float a = d[t - 1], b = d[t];
+            float frac = (b > a) ? ((float)level - a) / (b - a) : 1.0f;
+            pos0 = (float)(t - 1) + frac - (float)half;
+            triggered = 1;
+        }
+        gfx_trig_y = code_to_y(src, level);
+        f_mHz = measure_f_mHz(d, level, hyst);
+    }
+
+    /* 3. kolumny min/max z interpolacją liniową od chwili wyzwolenia */
+    for (int c = 0; c < NCH; c++) {
+        const uint16_t *d = acq_ch(c);
+        trace_t *tr = &gfx_tr[c];
+        float prev = 0.0f;
+        for (int x = 0; x < PLOT_W; x++) {
+            float mn = 1e9f, mx = -1e9f, v = 0.0f;
+            for (int k = 0; k < DEC; k++) {
+                float pos = pos0 + (float)(x * DEC + k);
+                int32_t i = (int32_t)pos;
+                float fr = pos - (float)i;
+                v = (float)d[i] + fr * ((float)d[i + 1] - (float)d[i]);
+                if (v < mn) mn = v;
+                if (v > mx) mx = v;
+            }
+            if (x > 0) {                                 /* ciągłość z poprzednią kolumną */
+                if (prev < mn) mn = prev;
+                if (prev > mx) mx = prev;
+            }
+            prev = v;
+            tr->ymin[x] = code_to_y(c, (int32_t)(mx + 0.5f));   /* większy kod = wyżej */
+            tr->ymax[x] = code_to_y(c, (int32_t)(mn + 0.5f));
+        }
+    }
 }
 
 void app_init(void)
 {
     dwt_init();
-    printf("\r\n=== Rejestrator 4ch, krok A3, SYSCLK = %lu Hz, SPI1 /%lu ===\r\n",
-           (unsigned long)HAL_RCC_GetSysClockFreq(),
-           (unsigned long)(2u << (((SPI1->CR1 >> 3) & 7))));
+    printf("\r\n=== Rejestrator 4ch, krok A5 (4 kanaly, ADC3+ADC4 / ADC1+ADC2 dual), SYSCLK = %lu Hz ===\r\n",
+           (unsigned long)HAL_RCC_GetSysClockFreq());
     lcd_init();
     gfx_init();
     for (int c = 0; c < NCH; c++) {
         gfx_tr[c].color = ch_color[c];
         gfx_tr[c].on = 1;
     }
-    gfx_trig_y = ch_zero[0] - 15;
     draw_static();
+
+    dac_start();
+    acq_init();
+    acq_arm();
     t_next = HAL_GetTick() + 1000;
 }
 
 void app_poll(void)
 {
     gfx_poll();
-    if (gfx_busy()) return;
+    acq_poll();
+    if (gfx_busy() || !acq_ready()) return;
 
-    /* między ramkami: raz na sekundę statystyka (SPI jest wtedy wolne) */
+    if (acq_half_cycles() < half_min) half_min = acq_half_cycles();
+    build_view();
+    acq_arm();              /* następny blok zbiera się w czasie wysyłania ramki */
+
+    /* SPI wolne: raz na sekundę paski statusu i linia w terminalu */
     if ((int32_t)(HAL_GetTick() - t_next) >= 0) {
         t_next += 1000;
-        uint32_t f = gfx_frames() - frames_last;
-        uint32_t cyc = gfx_render_cycles() - cyc_last;
+        uint32_t fps = gfx_frames() - frames_last;
         frames_last = gfx_frames();
-        cyc_last = gfx_render_cycles();
-        uint32_t cpu = cyc / 1560000u;                         /* % z 156 MHz */
-        char s[24];
-        snprintf(s, sizeof s, "%2lufps CPU%2lu%%", (unsigned long)f, (unsigned long)cpu);
-        lcd_text(244, 4, s, C_GRAY, COL_BAR, 1);
-        printf("%lu klatek/s, rysowanie paskow: %lu %% CPU\r\n", (unsigned long)f, (unsigned long)cpu);
+        uint32_t fs = (half_min != 0xFFFFFFFFu)
+                      ? (uint32_t)((uint64_t)(ACQ_N / 2) * 156000000u / half_min) : 0;
+        char s[64];
+        if (src >= 0)
+            snprintf(s, sizeof s, "%s CH%d f=%lu.%02lukHz fs=%lu.%03luMSa/s %2lufps   ",
+                     triggered ? "TRIG" : "AUTO", src + 1,
+                     (unsigned long)(f_mHz / 1000000u), (unsigned long)(f_mHz / 10000u % 100u),
+                     (unsigned long)(fs / 1000000u), (unsigned long)(fs / 1000u % 1000u),
+                     (unsigned long)fps);
+        else
+            snprintf(s, sizeof s, "brak sygnalu   fs=%lu.%03luMSa/s %2lufps         ",
+                     (unsigned long)(fs / 1000000u), (unsigned long)(fs / 1000u % 1000u),
+                     (unsigned long)fps);
+        lcd_text(4, 4, s, triggered ? C_WHITE : C_ORANGE, COL_BAR, 1);
+        draw_bottom();
+        printf("%s | Vpp[mV] CH1=%lu CH2=%lu CH3=%lu CH4=%lu | %lu cykli/2048 pr.\r\n", s,
+               (unsigned long)((vmax[0] - vmin[0]) * VREF_MV / 4095),
+               (unsigned long)((vmax[1] - vmin[1]) * VREF_MV / 4095),
+               (unsigned long)((vmax[2] - vmin[2]) * VREF_MV / 4095),
+               (unsigned long)((vmax[3] - vmin[3]) * VREF_MV / 4095),
+               (unsigned long)half_min);
+        half_min = 0xFFFFFFFFu;
     }
 
-    make_traces(phase);
-    phase += 0.08f;
-    if (phase > 1000.0f) phase = 0.0f;
     gfx_start_frame();
 }

@@ -56,15 +56,19 @@ Każdy krok kończy się testem, który da się pokazać, i commitem.
 
 - [ ] **A1. Szkielet.** Poprawki `.ioc` (tabela 11 w `architektura_firmware.md`), `printf` na LPUART1,
   TIM7 co 1 ms, `prof.h` (DWT). Test: w terminalu co 1 s licznik ms i czas pętli w cyklach.
-- [ ] **A2. Wyświetlacz – sterownik blokujący.** Reset, inicjalizacja ILI9341, odczyt ID (wolne SPI),
+- [x] **A2. Wyświetlacz – sterownik blokujący.** Reset, inicjalizacja ILI9341, odczyt ID (wolne SPI),
   `lcd_fill_rect`, tekst 8×16. Test: kolorowe pasy + napis, czas zamalowania ekranu.
-- [ ] **A3. Renderer paskowy + DMA SPI.** Siatka 10×8, cztery sztuczne sinusy z tablicy (przesuwające się),
+  ✓ 07.11: pełny ekran 159 ms przy SPI /16.
+- [x] **A3. Renderer paskowy + DMA SPI.** Siatka 10×8, cztery sztuczne sinusy z tablicy (przesuwające się),
   paski statusu. Test: płynny obraz, klatki/s przy SPI /8 i /4 (tabela w `architektura_firmware.md`).
-- [ ] **A4. Jeden ADC + DMA + DAC.** ADC1 na PA0, wyzwalanie TIM6, DMA. Sygnał: **DAC1 → PA4 (CN7 pin 32)**,
+  ✓ 07.11: 37 kl/s przy SPI 39 MHz (DMA, -O2).
+- [x] **A4. Jeden ADC + DMA + DAC.** ADC1 na PA0, wyzwalanie TIM6, DMA. Sygnał: **DAC1 → PA4 (CN7 pin 32)**,
   kabelek do PA0 (CN7 pin 28). Test: sinus z DAC widoczny na LCD – pierwszy „oscyloskop”.
-- [ ] **A5. Cztery kanały.** ADC1+ADC2 i ADC3+ADC4 w trybie dual (regular simultaneous), wspólny TIM6,
+  ✓ 07.11: fs = 3,467 MSa/s potwierdzone (czas 2048 próbek = ideał + stały narzut HAL ~50 cykli, ten sam przy 45 i 48 taktach).
+- [x] **A5. Cztery kanały.** ADC1+ADC2 i ADC3+ADC4 w trybie dual (regular simultaneous), wspólny TIM6,
   2 DMA po 32 bity. Test: ten sam sygnał z DAC na PB1 (CN10 24), PB15 (CN10 26), PA0, PA1 (CN7 30) –
   cztery przebiegi bez przesunięcia, zmierzone fs = 3,467 MSa/s, brak zgubionych próbek.
+  ✓ 07.11: wszystkie 4 kanały działają; ADC podrzędne (ADC2, ADC4) muszą mieć Overrun = data overwritten.
 - [ ] **A6. Wyzwalanie i tryby.** Zbocze, poziom z histerezą, ułamek próbki, AUTO / NORMAL / SINGLE,
   RUN/STOP. Sterowanie: przycisk B1 (PC13) i komendy z UART. Test: stabilny obraz sinusa.
 - [ ] **A7. Podstawa czasu.** Tabela T/dz (TIM6 + oversampler), interpolacja przy 1–5 µs/dz.
