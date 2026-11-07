@@ -69,9 +69,10 @@ Każdy krok kończy się testem, który da się pokazać, i commitem.
   2 DMA po 32 bity. Test: ten sam sygnał z DAC na PB1 (CN10 24), PB15 (CN10 26), PA0, PA1 (CN7 30) –
   cztery przebiegi bez przesunięcia, zmierzone fs = 3,467 MSa/s, brak zgubionych próbek.
   ✓ 07.11: wszystkie 4 kanały działają; ADC podrzędne (ADC2, ADC4) muszą mieć Overrun = data overwritten.
-- [ ] **A6. Wyzwalanie i tryby.** Zbocze, poziom z histerezą, ułamek próbki, AUTO / NORMAL / SINGLE,
+- [x] **A6. Wyzwalanie i tryby.** Zbocze, poziom z histerezą, ułamek próbki, AUTO / NORMAL / SINGLE,
   RUN/STOP. Sterowanie: przycisk B1 (PC13) i komendy z UART. Test: stabilny obraz sinusa.
-- [ ] **A7. Podstawa czasu.** Tabela T/dz (TIM6 + oversampler), interpolacja przy 1–5 µs/dz.
+- [x] **A7. Podstawa czasu.** Tabela T/dz (TIM6 + oversampler), interpolacja przy 1–5 µs/dz.
+  ✓ 08.11: A6+A7 sprawdzone pilotem `tools/remote.py` (komendy tekstowe przez VCP ST-LINK).
 - [ ] **A8. Podgląd na PC.** `link.c` + `tools/viewer.py`: blok próbek → wykres i CSV.
 - [ ] **A9. FFT.** CMSIS-DSP, okno Hann, 1024–4096 punktów; widok FFT na LCD tym samym rendererem.
 - [ ] **A10. Tryb szybki 2-kanałowy (opcja).** Przeplot ADC3+ADC1 / ADC4+ADC2 (~6,9 MSa/s) – tylko jeśli
@@ -89,9 +90,9 @@ Każdy krok kończy się testem, który da się pokazać, i commitem.
 
 ### Etap C – funkcje urządzenia
 
-- [ ] **C1. Obsługa z płytki:** enkoder T = podstawa czasu, X = położenie poziome / poziom wyzwolenia,
+- [~] **C1. Obsługa z płytki:** (kod gotowy w `ui.c`, test na płytce; przypisanie w `ui.h`) enkoder T = podstawa czasu, X = położenie poziome / poziom wyzwolenia,
   Y = V/dz i położenie pionowe, przyciski CH1–CH4, RUN/STOP, AUTO (logika z A6/A7 już gotowa).
-- [ ] **C2. Wzmocnienie i AC/DC** z interfejsu (automatyczny dobór G do V/dz), opis zakresu na ekranie.
+- [~] **C2. Wzmocnienie i AC/DC** (kod gotowy w `afe.c`: G1 + DC przy starcie, SPI zwalniane do 9,75 MHz dla 74HC595; skala w woltach wejścia BNC) z interfejsu (automatyczny dobór G do V/dz), opis zakresu na ekranie.
 - [ ] **C3. Tryb roll** dla T/dz ≥ 20 ms (opcja).
 - [ ] **C4. Kalibracja:** offset (wejście zwarte, DC) i wzmocnienie (znane napięcie DC) dla każdego
   kanału i zakresu → zapis w ostatniej stronie flash.

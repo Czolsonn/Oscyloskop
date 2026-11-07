@@ -1,13 +1,21 @@
 /*
- * ui.h - wejścia użytkownika. Na razie: przycisk B1 USER na Nucleo (PC13) = RUN/STOP.
- * Przyciski i enkodery płytki dojdą w kroku C1.
+ * ui.h - przyciski i enkodery płytki (krok C1) + przycisk B1 na Nucleo.
+ *
+ * Każde zdarzenie zamienia się na komendę tekstową - tę samą, którą wysyła pilot z PC
+ * (tools/remote.py), więc przyciski i pilot działają identycznie.
+ *
+ *   CH1..CH4  (PC1, PB10, PB11, PB0)  "CHBTN n"    kanał wł. / wybór aktywnego / wył.
+ *   RUN/STOP  (PC2)                   "RUNBTN"     krótko: RUN <-> STOP, długo (>0,7 s): "SINGLE"
+ *   AUTO      (PC3)                   "MODE T"     AUTO <-> NORM
+ *   enkoder T (TIM4, PA11/PA12)       "TB +/-"     podstawa czasu;   wciśnięcie (PA10): "EDGE T"
+ *   enkoder X (TIM3, PB4/PB5)         "LEVEL +/-"  poziom wyzwalania; wciśnięcie (PB9):  "LEVEL AUTO"
+ *   enkoder Y (PB6/PB7 programowo)    "GAIN A +/-" wzmocnienie kanału aktywnego; wciśnięcie (PA15): "COUP A T"
+ *   B1 na Nucleo (PC13)               "RUNBTN"
  */
 #ifndef UI_H_INCLUDED
 #define UI_H_INCLUDED
 
-enum { EV_NONE = 0, EV_RUNSTOP };
-
 void ui_init(void);
-int  ui_poll(void);     /* zwraca zdarzenie albo EV_NONE */
+int  ui_poll(char *cmd, int max);   /* 1 = jest komenda do wykonania (w cmd) */
 
 #endif
