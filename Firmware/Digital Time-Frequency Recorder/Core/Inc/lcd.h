@@ -38,6 +38,8 @@ void lcd_pixel(uint16_t x, uint16_t y, uint16_t color);
 /* Zapis ciągły (dla DMA): okno + RAMWR, CS zostaje niski aż do lcd_end_write() */
 void lcd_begin_write(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1);
 void lcd_end_write(void);
+/* Wzór znaku 5x7 (5 bajtów-kolumn, bit 0 = górny wiersz) */
+const uint8_t *lcd_glyph(char ch);
 /* Tekst czcionką 5x7 (komórka 6x8 px), scale = 1, 2, 3... */
 void lcd_text(uint16_t x, uint16_t y, const char *s, uint16_t fg, uint16_t bg, uint8_t scale);
 

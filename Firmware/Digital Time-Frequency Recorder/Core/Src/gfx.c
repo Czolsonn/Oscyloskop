@@ -13,7 +13,9 @@
 #include <string.h>
 
 trace_t gfx_tr[NCH];
+overlay_t gfx_ov[NOV];
 int16_t gfx_trig_y = -1;
+int16_t gfx_trig_x = -1;
 
 static uint16_t strip[2][PLOT_W * STRIP_H];
 static uint16_t row_tpl[4][PLOT_W];     /* szablony wierszy siatki */
@@ -92,6 +94,46 @@ static void render_strip(int s, uint16_t *buf)
             if (b > y1) b = y1;
             uint16_t *p = &buf[(a - y0) * PLOT_W + x];
             for (int y = a; y <= b; y++, p += PLOT_W) *p = c;
+        }
+    }
+    /* 3b. trójkąt chwili wyzwolenia na górnej krawędzi */
+    if (gfx_trig_x >= 0 && y0 < 6) {
+        uint16_t c = SW(C_ORANGE);
+        for (int y = y0; y <= y1 && y < 6; y++)
+            for (int dx = -(5 - y); dx <= 5 - y; dx++) {
+                int x = gfx_trig_x + dx;
+                if (x >= 0 && x < PLOT_W) buf[(y - y0) * PLOT_W + x] = c;
+            }
+    }
+
+    /* 4. ramki z tekstem (menu, pomiary) na wierzchu */
+    for (int k = 0; k < NOV; k++) {
+        const overlay_t *o = &gfx_ov[k];
+        if (!o->on) continue;
+        int h = o->n * 10 + 3;
+        int ya = (o->y > y0) ? o->y : y0, yb = (o->y + h - 1 < y1) ? o->y + h - 1 : y1;
+        int x0 = o->x, x1 = o->x + o->w - 1;
+        if (x0 < 0) x0 = 0;
+        if (x1 > PLOT_W - 1) x1 = PLOT_W - 1;
+        for (int y = ya; y <= yb; y++) {
+            uint16_t *row = &buf[(y - y0) * PLOT_W];
+            int ry = y - o->y;
+            if (ry == 0 || ry == h - 1) {                         /* ramka górna/dolna */
+                for (int x = x0; x <= x1; x++) row[x] = COL_AXIS;
+                continue;
+            }
+            int line = (ry - 2) / 10, py = (ry - 2) % 10;
+            uint16_t bg = (line == o->hl && ry >= 2) ? SW(C_ORANGE) : SW(RGB565(20, 20, 30));
+            uint16_t fg = (line == o->hl && ry >= 2) ? SW(C_BLACK) : SW(o->fg[line < OV_LINES ? line : 0]);
+            for (int x = x0; x <= x1; x++) row[x] = bg;
+            row[x0] = row[x1] = COL_AXIS;                         /* ramka boczna */
+            if (ry < 2 || line >= o->n || py >= 8) continue;
+            const char *s = o->txt[line];
+            for (int i = 0; s[i] && o->x + 3 + i * 6 + 5 <= x1; i++) {
+                const uint8_t *g = lcd_glyph(s[i]);
+                for (int col = 0; col < 5; col++)
+                    if ((g[col] >> py) & 1) row[o->x + 3 + i * 6 + col] = fg;
+            }
         }
     }
     render_cyc += DWT->CYCCNT - t0;

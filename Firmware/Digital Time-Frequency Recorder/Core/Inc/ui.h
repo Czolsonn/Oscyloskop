@@ -7,9 +7,9 @@
  *   CH1..CH4  (PC1, PB10, PB11, PB0)  "CHBTN n"    kanał wł. / wybór aktywnego / wył.
  *   RUN/STOP  (PC2)                   "RUNBTN"     krótko: RUN <-> STOP, długo (>0,7 s): "SINGLE"
  *   AUTO      (PC3)                   "MODE T"     AUTO <-> NORM
- *   enkoder T (TIM4, PA11/PA12)       "TB +/-"     podstawa czasu;   wciśnięcie (PA10): "EDGE T"
- *   enkoder X (TIM3, PB4/PB5)         "LEVEL +/-"  poziom wyzwalania; wciśnięcie (PB9):  "LEVEL AUTO"
- *   enkoder Y (PB6/PB7 programowo)    "GAIN A +/-" wzmocnienie kanału aktywnego; wciśnięcie (PA15): "COUP A T"
+ *   enkoder T (TIM4, PA11/PA12)       "TROT +/-"   Trigger: poziom (w menu: wybór pozycji); wciśnięcie (PA10) "TPUSH": menu
+ *   enkoder X (TIM3, PB4/PB5)         "XROT +/-"   oś czasu: T/dz albo pozycja pozioma; wciśnięcie (PB9) "XPUSH": przełącza
+ *   enkoder Y (PB6/PB7 programowo)    "YROT +/-"   oś napięcia aktywnego kanału: V/dz albo offset; wciśnięcie (PA15) "YPUSH": przełącza
  *   B1 na Nucleo (PC13)               "RUNBTN"
  */
 #ifndef UI_H_INCLUDED

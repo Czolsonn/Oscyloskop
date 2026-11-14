@@ -107,9 +107,9 @@ static void on_press(int i)
     case B_CH1: case B_CH2: case B_CH3: case B_CH4:
         snprintf(s, sizeof s, "CHBTN %d", i - B_CH1 + 1); push(s); break;
     case B_AUTO:  push("MODE T"); break;
-    case B_TPUSH: push("EDGE T"); break;
-    case B_XPUSH: push("LEVEL AUTO"); break;
-    case B_YPUSH: push("COUP A T"); break;
+    case B_TPUSH: push("TPUSH"); break;
+    case B_XPUSH: push("XPUSH"); break;
+    case B_YPUSH: push("YPUSH"); break;
     case B_B1:    push("RUNBTN"); break;
     case B_RUN:   t_run_down = HAL_GetTick(); long_fired = 0; break;   /* decyzja przy puszczeniu */
     default: break;
@@ -123,12 +123,12 @@ static void encoders(void)
     x_acc += (int16_t)(x - x_last) * ENC_X_DIR;  x_last = x;
     int32_t y = y_cnt * ENC_Y_DIR;
 
-    while (t_acc >= ENC_DIV)  { t_acc -= ENC_DIV; push("TB +"); }
-    while (t_acc <= -ENC_DIV) { t_acc += ENC_DIV; push("TB -"); }
-    while (x_acc >= ENC_DIV)  { x_acc -= ENC_DIV; push("LEVEL +"); }
-    while (x_acc <= -ENC_DIV) { x_acc += ENC_DIV; push("LEVEL -"); }
-    while (y - y_used >= ENC_DIV)  { y_used += ENC_DIV; push("GAIN A +"); }
-    while (y - y_used <= -ENC_DIV) { y_used -= ENC_DIV; push("GAIN A -"); }
+    while (t_acc >= ENC_DIV)  { t_acc -= ENC_DIV; push("TROT +"); }
+    while (t_acc <= -ENC_DIV) { t_acc += ENC_DIV; push("TROT -"); }
+    while (x_acc >= ENC_DIV)  { x_acc -= ENC_DIV; push("XROT +"); }
+    while (x_acc <= -ENC_DIV) { x_acc += ENC_DIV; push("XROT -"); }
+    while (y - y_used >= ENC_DIV)  { y_used += ENC_DIV; push("YROT +"); }
+    while (y - y_used <= -ENC_DIV) { y_used -= ENC_DIV; push("YROT -"); }
 }
 
 int ui_poll(char *cmd, int max)

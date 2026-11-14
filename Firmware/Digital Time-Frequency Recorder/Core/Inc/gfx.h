@@ -26,7 +26,23 @@ typedef struct {
 } trace_t;
 
 extern trace_t gfx_tr[NCH];
+
+/* Ramki z tekstem rysowane NA polu przebiegów (menu, pomiary) - renderowane w paskach,
+ * więc nie migają. Wiersz tekstu = 10 px, znak = 6 px. hl = numer podświetlonego wiersza (-1 brak). */
+#define OV_LINES 16
+#define OV_CHARS 20
+typedef struct {
+    uint8_t  on;
+    int16_t  x, y, w;                  /* położenie w polu przebiegów; wysokość z liczby wierszy */
+    uint8_t  n;                        /* liczba wierszy */
+    int8_t   hl;
+    uint16_t fg[OV_LINES];
+    char     txt[OV_LINES][OV_CHARS + 1];
+} overlay_t;
+#define NOV 2
+extern overlay_t gfx_ov[NOV];
 extern int16_t gfx_trig_y;          /* poziom wyzwolenia w pikselach, -1 = brak linii */
+extern int16_t gfx_trig_x;          /* chwila wyzwolenia (trójkąt u góry pola), -1 = brak */
 
 void     gfx_init(void);
 int      gfx_busy(void);            /* 1 = trwa wysyłanie ramki, nie ruszać SPI */

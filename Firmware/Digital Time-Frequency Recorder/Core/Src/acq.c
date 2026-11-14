@@ -14,24 +14,23 @@
 #include "adc.h"
 #include "tim.h"
 
-/* takty na próbkę wyjściową = 5,2e6 * T/dz [s]; arr1 * 2^ovs = ticks (tabela z architektura_firmware.md) */
-static const tb_t tb_tab[TB_COUNT] = {
-    /* label    ticks   arr1 ovs   n      spx (próbek/px) */
-    { "1us",       45,    45, 0, 4096, 5.2f / 45.0f  },
-    { "2us",       45,    45, 0, 4096, 10.4f / 45.0f },
-    { "5us",       45,    45, 0, 4096, 26.0f / 45.0f },
-    { "10us",      52,    52, 0, 1200, 1.0f },
-    { "20us",     104,    52, 1, 1200, 1.0f },
-    { "50us",     260,    65, 2, 1200, 1.0f },
-    { "100us",    520,    65, 3, 1200, 1.0f },
-    { "200us",   1040,    65, 4, 1200, 1.0f },
-    { "500us",   2600,   325, 3, 1200, 1.0f },
-    { "1ms",     5200,   325, 4, 1200, 1.0f },
-    { "2ms",    10400,   325, 5, 1200, 1.0f },
-    { "5ms",    26000,  1625, 4, 1200, 1.0f },
-    { "10ms",   52000,  1625, 5, 1200, 1.0f },
-    { "20ms",  104000,  1625, 6, 1200, 1.0f },
-    { "50ms",  260000,  8125, 5, 1200, 1.0f },
+/* Konfiguracje fs: takty 156 MHz na próbkę wyjściową = arr1 * 2^ovs_log2 (TIM6 + nadpróbkowanie ADC).
+ * Wartości z architektura_firmware.md (tabela podstaw czasu, 30 px/dz). */
+typedef struct { uint32_t ticks; uint16_t arr1; uint8_t ovs_log2; } cfg_t;
+static const cfg_t cfg_tab[ACQ_NCFG] = {
+    {     45,   45, 0 },   /* 3,467 MSa/s */
+    {     52,   52, 0 },   /* 3 MSa/s     */
+    {    104,   52, 1 },   /* 1,5 MSa/s   */
+    {    260,   65, 2 },   /* 600 kSa/s   */
+    {    520,   65, 3 },   /* 300 kSa/s   */
+    {   1040,   65, 4 },   /* 150 kSa/s   */
+    {   2600,  325, 3 },   /* 60 kSa/s    */
+    {   5200,  325, 4 },   /* 30 kSa/s    */
+    {  10400,  325, 5 },   /* 15 kSa/s    */
+    {  26000, 1625, 4 },   /* 6 kSa/s     */
+    {  52000, 1625, 5 },   /* 3 kSa/s     */
+    { 104000, 1625, 6 },   /* 1,5 kSa/s   */
+    { 260000, 8125, 5 },   /* 600 Sa/s    */
 };
 
 static uint32_t raw34[ACQ_NMAX];              /* ADC3 | ADC4 << 16  (CH1, CH2) */
@@ -46,12 +45,11 @@ static volatile uint32_t t_half, t_end;
 static uint32_t half_cyc;
 
 static int      n_cur = 1200;
-static float    spx_cur = 1.0f;
 static uint32_t fs_cur, ovs_cur = 1;
 
 static ADC_TypeDef *const adcs[4] = { ADC1, ADC2, ADC3, ADC4 };
 
-const tb_t *acq_tb(int idx) { return &tb_tab[idx]; }
+uint32_t acq_cfg_fs(int cfg) { return 156000000u / cfg_tab[cfg].ticks; }
 
 void acq_init(void)
 {
@@ -65,11 +63,41 @@ void acq_init(void)
      * przepełnieniu (np. przy zatrzymaniu bloku) rejestr wyniku zamarza i kanał pokazuje stałą wartość. */
     SET_BIT(ADC2->CFGR, ADC_CFGR_OVRMOD);
     SET_BIT(ADC4->CFGR, ADC_CFGR_OVRMOD);
+
+    /* V_BAT na PC0 = ADC1_IN6 jako kanał WSTRZYKIWANY ADC1 (regularne kanały zajmuje akwizycja).
+     * Źródło ma ~25 kOhm (100k || 33k) -> długi czas próbkowania 247,5 cykla (4,8 us). */
+    ADC_InjectionConfTypeDef j = { 0 };
+    j.InjectedChannel = ADC_CHANNEL_6;
+    j.InjectedRank = ADC_INJECTED_RANK_1;
+    j.InjectedSamplingTime = ADC_SAMPLETIME_247CYCLES_5;
+    j.InjectedSingleDiff = ADC_SINGLE_ENDED;
+    j.InjectedOffsetNumber = ADC_OFFSET_NONE;
+    j.InjectedNbrOfConversion = 1;
+    j.InjectedDiscontinuousConvMode = DISABLE;
+    j.AutoInjectedConv = DISABLE;
+    j.QueueInjectedContext = DISABLE;
+    j.ExternalTrigInjecConv = ADC_INJECTED_SOFTWARE_START;
+    j.ExternalTrigInjecConvEdge = ADC_EXTERNALTRIGINJECCONV_EDGE_NONE;
+    j.InjecOversamplingMode = DISABLE;
+    HAL_ADCEx_InjectedConfigChannel(&hadc1, &j);
 }
 
-void acq_set_timebase(int idx, int use_ovs)
+int acq_read_vbat(void)
 {
-    const tb_t *t = &tb_tab[idx];
+    if (running) return -1;
+    uint32_t sum = 0;
+    for (int k = 0; k < 8; k++) {
+        if (HAL_ADCEx_InjectedStart(&hadc1) != HAL_OK) return -1;
+        if (HAL_ADCEx_InjectedPollForConversion(&hadc1, 2) != HAL_OK) { HAL_ADCEx_InjectedStop(&hadc1); return -1; }
+        sum += HAL_ADCEx_InjectedGetValue(&hadc1, ADC_INJECTED_RANK_1);
+    }
+    HAL_ADCEx_InjectedStop(&hadc1);
+    return (int)((sum + 4u) / 8u);
+}
+
+void acq_configure(int cfg, int use_ovs, int n)
+{
+    const cfg_t *t = &cfg_tab[cfg];
     uint32_t psc = 1, arr1, ovs_log2 = 0;
 
     if (use_ovs && t->ovs_log2) {
@@ -95,8 +123,7 @@ void acq_set_timebase(int idx, int use_ovs)
     htim6.Instance->EGR = TIM_EGR_UG;          /* załadowanie PSC (ADC nieuzbrojone - impuls TRGO bez skutku) */
     htim6.Instance->SR = 0;
 
-    n_cur = t->n;
-    spx_cur = t->spx;
+    n_cur = (n < 64) ? 64 : (n > ACQ_NMAX) ? ACQ_NMAX : n;
     ovs_cur = 1u << ovs_log2;
     fs_cur = 156000000u / (psc * arr1 * ovs_cur);
 }
@@ -162,7 +189,6 @@ int acq_busy(void) { return running; }
 int acq_take(void) { if (ready) { ready = 0; return 1; } return 0; }
 const uint16_t *acq_ch(int ch) { return chbuf[ch]; }
 int acq_n(void) { return n_cur; }
-float acq_spx(void) { return spx_cur; }
 uint32_t acq_fs_hz(void) { return fs_cur; }
 uint32_t acq_ovs(void) { return ovs_cur; }
 uint32_t acq_half_cycles(void) { return half_cyc; }

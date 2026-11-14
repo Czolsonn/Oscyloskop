@@ -1,9 +1,9 @@
 """
-Pilot rejestratora 4-kanałowego (NUCLEO-G474RE) - sterowanie przez wirtualny COM ST-LINK.
+Pilot rejestratora 4-kanałowego (NUCLEO-G474RE) - wirtualny panel płytki przez wirtualny COM ST-LINK.
 
-Narzędzie tymczasowe do testów: wysyła te same komendy, które generują przyciski i enkodery płytki
-(RUN/STOP/SINGLE, AUTO/NORM, kanał/zbocze/poziom wyzwalania, podstawa czasu, kanały, wzmocnienie,
-AC/DC, skala), a do tego steruje generatorem testowym na PA4 (gniazdo A2) i pokazuje stan urządzenia.
+Narzędzie tymczasowe do testów: przyciski i enkodery wysyłają DOKŁADNIE te komendy, które generuje
+płytka (ui.c), więc zachowanie jest takie samo jak przy prawdziwym panelu. Dodatkowo: skala ADC
+(test na samej Nucleo), kalibracja zera, stan urządzenia i terminal.
 
 Uruchomienie:  python tools/remote.py
 Wymaga:        pip install pyserial   (Tkinter jest w standardowym Pythonie)
@@ -18,39 +18,19 @@ import serial
 import serial.tools.list_ports
 
 BAUD = 209700
-TB_DEFAULT = ["1us", "2us", "5us", "10us", "20us", "50us", "100us", "200us",
-              "500us", "1ms", "2ms", "5ms", "10ms", "20ms", "50ms"]
 CH_COLORS = ["#d4b106", "#1a9fd6", "#d6457a", "#4caf50"]
-PINS = ["PB1", "PB15", "PA0 (A0)", "PA1 (A1)"]
-GAINS = ["1", "2", "5", "10"]
-IN2ADC = {"1": 0.04737, "2": 0.09455, "5": 0.2348, "10": 0.4630}   # wejście BNC -> pin ADC
-VREF = 3.3
 
 
 class Remote(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Rejestrator 4ch - pilot (tymczasowy)")
+        self.title("Rejestrator 4ch - wirtualny panel (tymczasowy)")
         self.ser = None
         self.rx = queue.Queue()
         self.alive = False
-        self.tb_labels = list(TB_DEFAULT)
-        self.dragging = False
 
         self.v_port = tk.StringVar()
-        self.v_mode = tk.StringVar(value="AUTO")
-        self.v_trig = tk.IntVar(value=1)
-        self.v_edge = tk.StringVar(value="R")
-        self.v_level = tk.DoubleVar(value=0.0)
-        self.v_lauto = tk.BooleanVar(value=True)
-        self.v_tb = tk.StringVar(value="20us")
-        self.v_ovs = tk.BooleanVar(value=True)
-        self.v_adc = tk.BooleanVar(value=False)          # skala: pin ADC (test na Nucleo)
-        self.v_on = [tk.BooleanVar(value=True) for _ in range(4)]
-        self.v_gain = [tk.StringVar(value="1") for _ in range(4)]
-        self.v_cpl = [tk.StringVar(value="DC") for _ in range(4)]
-        self.v_gshape = tk.StringVar(value="SIN")
-        self.v_gfreq = tk.StringVar(value="10k")
+        self.v_adc = tk.BooleanVar(value=False)
         self.v_show_s = tk.BooleanVar(value=False)
 
         self._build()
@@ -58,6 +38,15 @@ class Remote(tk.Tk):
         self.after(50, self._poll_rx)
 
     # ------------------------------------------------------------------ GUI
+    def _enc(self, parent, name, title, hint):
+        f = ttk.LabelFrame(parent, text=title)
+        f.pack(side="left", padx=4, pady=3, fill="y")
+        r = ttk.Frame(f); r.pack()
+        ttk.Button(r, text="⟲", width=3, command=lambda: self.send(f"{name}ROT -")).pack(side="left", padx=2)
+        ttk.Button(r, text="wciśnij", width=7, command=lambda: self.send(f"{name}PUSH")).pack(side="left", padx=2)
+        ttk.Button(r, text="⟳", width=3, command=lambda: self.send(f"{name}ROT +")).pack(side="left", padx=2)
+        ttk.Label(f, text=hint, foreground="gray", justify="center").pack(pady=2)
+
     def _build(self):
         pad = dict(padx=4, pady=3)
         top = ttk.Frame(self)
@@ -71,113 +60,53 @@ class Remote(tk.Tk):
         self.l_conn = ttk.Label(top, text="rozłączony", foreground="gray")
         self.l_conn.pack(side="left", padx=8)
 
-        body = ttk.Frame(self)
-        body.pack(fill="both", expand=True, **pad)
-        left = ttk.Frame(body)
-        left.pack(side="left", fill="y")
-        right = ttk.Frame(body)
-        right.pack(side="left", fill="both", expand=True, padx=6)
-
-        # akwizycja i tryb
-        f = ttk.LabelFrame(left, text="Akwizycja (przycisk RUN/STOP, długo = SINGLE; przycisk AUTO)")
+        # panel jak na płytce
+        f = ttk.LabelFrame(self, text="Panel płytki")
         f.pack(fill="x", **pad)
-        for t in ("RUN", "STOP", "SINGLE"):
-            ttk.Button(f, text=t, width=8, command=lambda c=t: self.send(c)).pack(side="left", **pad)
-        ttk.Separator(f, orient="vertical").pack(side="left", fill="y", padx=6)
-        for t in ("AUTO", "NORM"):
-            ttk.Radiobutton(f, text=t, value=t, variable=self.v_mode,
-                            command=lambda: self.send("MODE " + self.v_mode.get())).pack(side="left")
-
-        # wyzwalanie
-        f = ttk.LabelFrame(left, text="Wyzwalanie (enkoder X: poziom, wciśnięcie = AUTO; T wciśnięcie = zbocze)")
-        f.pack(fill="x", **pad)
-        r = ttk.Frame(f); r.pack(fill="x")
-        ttk.Label(r, text="Źródło:").pack(side="left")
-        for i in range(1, 5):
-            ttk.Radiobutton(r, text=f"CH{i}", value=i, variable=self.v_trig,
-                            command=lambda: self.send(f"TRIG {self.v_trig.get()}")).pack(side="left")
-        ttk.Label(r, text="   Zbocze:").pack(side="left")
-        ttk.Radiobutton(r, text="↑", value="R", variable=self.v_edge,
-                        command=lambda: self.send("EDGE R")).pack(side="left")
-        ttk.Radiobutton(r, text="↓", value="F", variable=self.v_edge,
-                        command=lambda: self.send("EDGE F")).pack(side="left")
-        r = ttk.Frame(f); r.pack(fill="x")
-        self.l_lvl = ttk.Label(r, text="Poziom [V]:")
-        self.l_lvl.pack(side="left")
-        self.sc_level = tk.Scale(r, from_=-35, to=35, orient="horizontal", length=240,
-                                 variable=self.v_level, resolution=0.05)
-        self.sc_level.pack(side="left")
-        self.sc_level.bind("<ButtonPress-1>", lambda e: setattr(self, "dragging", True))
-        self.sc_level.bind("<ButtonRelease-1>", self._level_release)
-        ttk.Checkbutton(r, text="AUTO (środek)", variable=self.v_lauto,
-                        command=self._send_level).pack(side="left")
-        ttk.Button(r, text="−", width=2, command=lambda: self.send("LEVEL -")).pack(side="left")
-        ttk.Button(r, text="+", width=2, command=lambda: self.send("LEVEL +")).pack(side="left")
-
-        # podstawa czasu
-        f = ttk.LabelFrame(left, text="Podstawa czasu (enkoder T)")
-        f.pack(fill="x", **pad)
-        ttk.Button(f, text="◄ szybciej", command=lambda: self.send("TB -")).pack(side="left", **pad)
-        self.cb_tb = ttk.Combobox(f, textvariable=self.v_tb, values=self.tb_labels, width=7, state="readonly")
-        self.cb_tb.pack(side="left", **pad)
-        self.cb_tb.bind("<<ComboboxSelected>>", lambda e: self.send("TB " + self.v_tb.get()))
-        ttk.Label(f, text="/dz").pack(side="left")
-        ttk.Button(f, text="wolniej ►", command=lambda: self.send("TB +")).pack(side="left", **pad)
-        ttk.Checkbutton(f, text="nadpróbkowanie ADC", variable=self.v_ovs,
-                        command=lambda: self.send("OVS " + ("ON" if self.v_ovs.get() else "OFF"))).pack(side="left")
-
-        # kanały
-        f = ttk.LabelFrame(left, text="Kanały (przyciski CH: wł. / aktywny / wył.; enkoder Y: wzmocnienie, wciśnięcie = AC/DC)")
-        f.pack(fill="x", **pad)
-        self.l_act = []
-        for i in range(4):
-            r = ttk.Frame(f); r.pack(fill="x")
-            l = tk.Label(r, text=" ", width=2, fg=CH_COLORS[i], font=("Segoe UI", 10, "bold"))
-            l.pack(side="left")
-            self.l_act.append(l)
-            tk.Checkbutton(r, text=f"CH{i+1} {PINS[i]:9s}", variable=self.v_on[i], fg=CH_COLORS[i], width=14,
-                           anchor="w", command=lambda i=i: self.send(f"CH {i+1} " + ("ON" if self.v_on[i].get() else "OFF"))
-                           ).pack(side="left")
-            ttk.Button(r, text="przycisk CH", command=lambda i=i: self.send(f"CHBTN {i+1}")).pack(side="left", padx=2)
-            ttk.Label(r, text="  x").pack(side="left")
-            cb = ttk.Combobox(r, textvariable=self.v_gain[i], values=GAINS, width=3, state="readonly")
-            cb.pack(side="left")
-            cb.bind("<<ComboboxSelected>>", lambda e, i=i: self.send(f"GAIN {i+1} {self.v_gain[i].get()}"))
-            for c in ("DC", "AC"):
-                ttk.Radiobutton(r, text=c, value=c, variable=self.v_cpl[i],
-                                command=lambda i=i: self.send(f"COUP {i+1} {self.v_cpl[i].get()}")).pack(side="left")
         r = ttk.Frame(f); r.pack(fill="x", pady=2)
-        ttk.Checkbutton(r, text="skala: napięcie na pinie ADC (test na samej Nucleo, bez płytki)",
-                        variable=self.v_adc, command=self._send_scale).pack(side="left")
+        for i in range(4):
+            tk.Button(r, text=f"CH{i+1}", width=6, bg=CH_COLORS[i], fg="black",
+                      command=lambda i=i: self.send(f"CHBTN {i+1}")).pack(side="left", padx=3)
+        ttk.Label(r, text="(wł. → aktywny → wył.)", foreground="gray").pack(side="left", padx=4)
+        ttk.Button(r, text="RUN/STOP", command=lambda: self.send("RUNBTN")).pack(side="left", padx=6)
+        ttk.Button(r, text="RUN/STOP długo (SINGLE)", command=lambda: self.send("SINGLE")).pack(side="left")
+        ttk.Button(r, text="AUTO", command=lambda: self.send("MODE T")).pack(side="left", padx=6)
+        r = ttk.Frame(f); r.pack(fill="x")
+        self._enc(r, "T", "Enkoder T (Trigger)", "obrót: poziom wyzwalania\nwciśnięcie: menu\nw menu: wybór / zmiana")
+        self._enc(r, "X", "Enkoder X (oś czasu)", "obrót: T/dz albo pozycja\nwciśnięcie: przełącz")
+        self._enc(r, "Y", "Enkoder Y (oś napięcia)", "obrót: V/dz albo offset\nkanału aktywnego\nwciśnięcie: przełącz")
 
-        # generator
-        f = ttk.LabelFrame(left, text="Generator testowy na PA4 (gniazdo A2) - tylko Nucleo")
+        # kalibracja i diagnostyka
+        f = ttk.LabelFrame(self, text="Kalibracja i diagnostyka")
         f.pack(fill="x", **pad)
-        ttk.Combobox(f, textvariable=self.v_gshape, values=["SIN", "SQR", "TRI", "OFF"],
-                     width=5, state="readonly").pack(side="left", **pad)
-        ttk.Entry(f, textvariable=self.v_gfreq, width=8).pack(side="left", **pad)
-        ttk.Label(f, text="Hz (np. 500, 10k, 100k)").pack(side="left")
-        ttk.Button(f, text="Ustaw", command=lambda: self.send(
-            f"GEN {self.v_gshape.get()} {self.v_gfreq.get()}")).pack(side="left", **pad)
+        ttk.Button(f, text="Kalibruj zero (wejścia zwarte do masy, DC)",
+                   command=lambda: self.send("CALZERO")).pack(side="left", **pad)
+        ttk.Button(f, text="Usuń kalibrację", command=lambda: self.send("CALCLEAR")).pack(side="left", **pad)
+        self.v_cal1k = tk.BooleanVar(value=True)
+        ttk.Checkbutton(f, text="1 kHz na J13", variable=self.v_cal1k,
+                        command=lambda: self.send("CAL1K " + ("ON" if self.v_cal1k.get() else "OFF"))).pack(side="left", **pad)
+        ttk.Checkbutton(f, text="skala: pin ADC (bez płytki)", variable=self.v_adc,
+                        command=lambda: self.send("SCALE " + ("ADC" if self.v_adc.get() else "IN"))).pack(side="left", **pad)
+        ttk.Button(f, text="Pomiary CH1", command=lambda: self.send("MEAS 1")).pack(side="left", **pad)
 
-        # stan urządzenia
-        f = ttk.LabelFrame(right, text="Stan urządzenia (linia #S)")
+        # stan
+        f = ttk.LabelFrame(self, text="Stan urządzenia (linia #S)")
         f.pack(fill="x", **pad)
-        self.l_state = tk.Label(f, text="-", font=("Segoe UI", 16, "bold"))
+        self.l_state = tk.Label(f, text="-", font=("Segoe UI", 14, "bold"))
         self.l_state.pack(anchor="w", padx=6)
         self.l_info = tk.Label(f, text="", font=("Consolas", 10), justify="left", anchor="w")
-        self.l_info.pack(fill="x", padx=6, pady=4)
-        self.l_vpp = []
+        self.l_info.pack(fill="x", padx=6)
         r = ttk.Frame(f); r.pack(fill="x", padx=6, pady=2)
+        self.l_ch = []
         for i in range(4):
-            l = tk.Label(r, text=f"CH{i+1}: -", fg=CH_COLORS[i], font=("Consolas", 11, "bold"), width=17, anchor="w")
+            l = tk.Label(r, text=f"CH{i+1}", fg=CH_COLORS[i], font=("Consolas", 10, "bold"), justify="left", anchor="nw", width=24)
             l.pack(side="left")
-            self.l_vpp.append(l)
+            self.l_ch.append(l)
 
-        # konsola
-        f = ttk.LabelFrame(right, text="Terminal")
+        # terminal
+        f = ttk.LabelFrame(self, text="Terminal")
         f.pack(fill="both", expand=True, **pad)
-        self.log = scrolledtext.ScrolledText(f, height=18, font=("Consolas", 9))
+        self.log = scrolledtext.ScrolledText(f, height=12, font=("Consolas", 9))
         self.log.pack(fill="both", expand=True)
         r = ttk.Frame(f); r.pack(fill="x")
         self.e_cmd = ttk.Entry(r)
@@ -223,7 +152,6 @@ class Remote(tk.Tk):
         threading.Thread(target=self._reader, daemon=True).start()
         self.b_conn["text"] = "Rozłącz"
         self.l_conn.config(text=f"połączony {dev} @ {BAUD}", foreground="green")
-        self.send("TBLIST")
         self.send("STAT")
 
     def _reader(self):
@@ -254,17 +182,6 @@ class Remote(tk.Tk):
             self.send(c)
             self.e_cmd.delete(0, "end")
 
-    def _level_release(self, _e):
-        self.dragging = False
-        self.v_lauto.set(False)
-        self._send_level()
-
-    def _send_level(self):
-        self.send("LEVEL AUTO" if self.v_lauto.get() else f"LEVEL {self.v_level.get():.3f}")
-
-    def _send_scale(self):
-        self.send("SCALE " + ("ADC" if self.v_adc.get() else "IN"))
-
     # ------------------------------------------------------------------ odbiór
     def _log(self, s):
         self.log.insert("end", s)
@@ -280,14 +197,6 @@ class Remote(tk.Tk):
                     self._parse_status(line)
                     if self.v_show_s.get():
                         self._log(line + "\n")
-                elif line.startswith("#TB "):
-                    parts = line.split()
-                    if len(parts) == 3:
-                        i = int(parts[1])
-                        while len(self.tb_labels) <= i:
-                            self.tb_labels.append("?")
-                        self.tb_labels[i] = parts[2]
-                        self.cb_tb["values"] = self.tb_labels
                 else:
                     self._log(line + "\n")
         except queue.Empty:
@@ -295,69 +204,49 @@ class Remote(tk.Tk):
         self.after(50, self._poll_rx)
 
     @staticmethod
-    def _fmt_v(mv):
-        v = mv / 1000.0
+    def _v(mv):
+        v = int(mv) / 1000.0
+        if abs(v) < 1:
+            return f"{v*1000:.0f} mV"
         return f"{v:.2f} V" if abs(v) < 10 else f"{v:.1f} V"
 
     def _parse_status(self, line):
         st = dict(kv.split("=", 1) for kv in line[3:].split() if "=" in kv)
-        run = st.get("run") == "1"
-        state = st.get("st", "?")
-        color = {"TRIG": "green", "AUTO": "#c77700", "WAIT": "#c77700", "STOP": "red"}.get(state, "black")
-        self.l_state.config(text=f"{'RUN' if run else 'STOP'}  {st.get('mode', '')}  ·  {state}", fg=color)
         try:
+            run = st.get("run") == "1"
+            state = st.get("st", "?")
+            color = {"TRIG": "green", "AUTO": "#c77700", "WAIT": "#c77700", "STOP": "red"}.get(state, "black")
+            self.l_state.config(text=f"{'RUN' if run else 'STOP'}  {st.get('mode', '')}  ·  {state}"
+                                     f"{'   · MENU' if st.get('menu') == '1' else ''}", fg=color)
             fs, fsm, f = int(st.get("fs", "0")), int(st.get("fsm", "0")), float(st.get("f", "0"))
-            lvl = int(st.get("lvl", "0"))
-        except ValueError:
-            fs, fsm, f, lvl = 0, 0, 0.0, 0
-        adc = st.get("scale") == "ADC"
-        gains = st.get("g", "1,1,1,1").split(",")
-        cpl = st.get("cpl", "DDDD")
-        on = st.get("on", "1111")
-        act = st.get("act", "1")
-        tc = int(st.get("trig", "1")) if st.get("trig", "").isdigit() else 1
-        self.l_info.config(text=(
-            f"T/dz = {st.get('tdiv', '?')}    fs = {fs/1e6:.4f} MSa/s (zmierzona {fsm/1e6:.4f})"
-            f"    nadpróbkowanie x{st.get('ovs', '?')}    blok {st.get('n', '?')} próbek\n"
-            f"wyzwalanie CH{tc} {'↑' if st.get('edge') == 'R' else '↓'}  poziom {self._fmt_v(lvl)}"
-            f"{' (auto)' if st.get('lauto') == '1' else ''}    f = {f/1000:.3f} kHz    obraz {st.get('fps', '?')} kl/s\n"
-            f"skala: {'pin ADC' if adc else 'wejście BNC'}    kanał aktywny CH{act}"
-            f"    generator: {st.get('gen', '?').replace(',', ' ')} Hz"))
-        vpp = st.get("vpp", "").split(",")
-        for i in range(4):
-            if i < len(vpp) and vpp[i].lstrip("-").isdigit():
-                txt = f"CH{i+1}: {self._fmt_v(int(vpp[i]))}pp" if on[i] == "1" else f"CH{i+1}: off"
-                self.l_vpp[i].config(text=txt)
-        # synchronizacja kontrolek ze stanem urządzenia (bez wysyłania komend)
-        if st.get("mode") in ("AUTO", "NORM"):
-            self.v_mode.set(st["mode"])
-        self.v_trig.set(tc)
-        if st.get("edge") in ("R", "F"):
-            self.v_edge.set(st["edge"])
-        self.v_lauto.set(st.get("lauto") == "1")
-        if adc:
-            lo, hi = 0.0, VREF
-        else:
-            g = gains[tc - 1] if tc - 1 < len(gains) else "1"
-            hi = round(VREF / 2 / IN2ADC.get(g, 0.04737), 1)
-            lo = -hi
-        self.sc_level.config(from_=lo, to=hi)
-        self.l_lvl.config(text="Poziom [V, pin ADC]:" if adc else "Poziom [V, wejście]:")
-        if not self.dragging:
-            self.v_level.set(lvl / 1000.0)
-        if "tdiv" in st:
-            self.v_tb.set(st["tdiv"])
-        if "ovsen" in st:
-            self.v_ovs.set(st["ovsen"] == "1")
-        self.v_adc.set(adc)
-        for i in range(4):
-            if i < len(on):
-                self.v_on[i].set(on[i] == "1")
-            if i < len(gains):
-                self.v_gain[i].set(gains[i])
-            if i < len(cpl):
-                self.v_cpl[i].set("DC" if cpl[i] == "D" else "AC")
-            self.l_act[i].config(text="►" if str(i + 1) == act else " ")
+            xm = "pozycja (hpos " + st.get("hpos", "0") + " px)" if st.get("xm") == "P" else "T/dz"
+            ym = "offset" if st.get("ym") == "P" else "V/dz"
+            self.l_info.config(text=(
+                f"T/dz = {st.get('tdiv', '?')}   fs = {fs/1e6:.4f} MSa/s (zmierzona {fsm/1e6:.4f})"
+                f"   nadpróbk. x{st.get('ovs', '?')}   blok {st.get('n', '?')}   obraz {st.get('fps', '?')} kl/s\n"
+                f"wyzwalanie CH{st.get('trig', '?')} {'↑' if st.get('edge') == 'R' else '↓'}"
+                f"  poziom {self._v(st.get('lvl', '0'))}{' (auto)' if st.get('lauto') == '1' else ''}"
+                f"   f = {f/1000:.3f} kHz\n"
+                f"enkoder X: {xm}   enkoder Y: {ym} (kanał aktywny CH{st.get('act', '?')})"
+                f"   skala: {'pin ADC' if st.get('scale') == 'ADC' else 'wejście BNC'}"
+                f"   pomiary: {'CH' + st.get('meas') if st.get('meas', '0') != '0' else 'wył.'}"
+                f"   bateria: {(str(round(int(st.get('vbat', '-1')) / 1000, 2)) + ' V, ' + st.get('bat', '?') + ' %') if int(st.get('bat', '-1')) >= 0 else 'brak (USB)'}"))
+            self.v_adc.set(st.get("scale") == "ADC")
+            self.v_cal1k.set(st.get("cal1k", "1") == "1")
+            on = st.get("on", "0000")
+            g, cpl, pr = st.get("g", "").split(","), st.get("cpl", "DDDD"), st.get("pr", "").split(",")
+            vd, of, vpp = st.get("vdiv", "").split(","), st.get("off", "").split(","), st.get("vpp", "").split(",")
+            for i in range(4):
+                if on[i] != "1":
+                    self.l_ch[i].config(text=f"CH{i+1}: wył.")
+                    continue
+                act = " ◄ aktywny" if st.get("act") == str(i + 1) else ""
+                self.l_ch[i].config(text=(
+                    f"CH{i+1} {'DC' if cpl[i] == 'D' else 'AC'} x{pr[i]}{act}\n"
+                    f"{self._v(vd[i])}/dz  offset {self._v(of[i])}\n"
+                    f"wzmocnienie G{g[i]}   {self._v(vpp[i])}pp"))
+        except (ValueError, IndexError, KeyError):
+            pass
 
 
 if __name__ == "__main__":

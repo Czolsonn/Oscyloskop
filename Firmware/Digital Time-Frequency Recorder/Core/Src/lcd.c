@@ -153,6 +153,13 @@ static const uint8_t font5x7[95][5] = {
     {0x00,0x00,0x7F,0x00,0x00},{0x00,0x41,0x36,0x08,0x00},{0x10,0x08,0x08,0x10,0x08}                             /* |}~  */
 };
 
+/* Wzór znaku 5x7 (5 kolumn, bit 0 = górny wiersz) - także dla tekstu rysowanego w paskach (gfx.c) */
+const uint8_t *lcd_glyph(char ch)
+{
+    if (ch < 0x20 || ch > 0x7E) ch = '?';
+    return font5x7[ch - 0x20];
+}
+
 /* Jeden znak: bufor komórki 6x8 * scale, wysłany jednym oknem */
 static void lcd_char(uint16_t x, uint16_t y, char ch, uint16_t fg, uint16_t bg, uint8_t s)
 {
